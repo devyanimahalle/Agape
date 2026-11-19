@@ -24,7 +24,7 @@ Tokens live in `frontend/src/styles/index.css` (`@theme`).
 Rules: yellow and orange are *surfaces* behind dark `ink` text. Never use white text on orange (about 3.6:1), and never use yellow as text on light backgrounds. Orange text on cream is allowed only at display size (24px and up) with `brand`, or at any size with `brand-deep`.
 
 ## Brand moments
-- **Wordmark:** `AGAPE` in Anton, uppercase, very large on the landing hero (`text-[5.5rem]`, `md:text-[11rem]`), always paired with the tagline **"Every MEAL Matters"** in a solid `ink` pill with cream text.
+- **Wordmark:** `AGAPE` in Anton, uppercase, viewport-scaled on the landing hero (`text-[clamp(5.5rem,31vw,21rem)]`, leading `0.8`); smaller on the login panel (`clamp(4.5rem,15vw,9.5rem)`) and in the footer (`clamp(3.5rem,13vw,9rem)`, orange on ink), always paired with the tagline **"Every MEAL Matters"** in a solid `ink` pill with cream text.
 - **Entry animation:** `.agape-rise` in `src/styles/index.css` (0.7s fade and 14px rise, staggered with the `--d` delay variable). Content is fully visible without it, and `prefers-reduced-motion: reduce` disables it.
 - **Login:** a split layout. The left panel is `brand-bright` with the wordmark, tagline and three feature blurbs (NGO food board and reservations; donor surplus listings and admin verification, both marked "In development" because those screens are not built yet). The right panel holds the form and a `brand` submit button.
 
