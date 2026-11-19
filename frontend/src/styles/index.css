@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Agape tokens, adapted from The Stacked Store's palette. See docs/design-system.md */
+@theme {
+  --color-canvas: #f5f0e4;
+  --color-panel: #ffffff;
+  --color-ink: #111111;
+  --color-muted: #5b564b;
+  --color-line: #a89f91;
+  --color-sage: #889387;
+  --color-primary: #ffd600;
+  --color-highlight: #f4f46e;
+  --color-plum: #3d1a39;
+  --color-plum-mid: #a54d85;
+  --color-toast: #3b404b;
+
+  --font-display: "Anton", Impact, sans-serif;
+  --font-sans: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --radius-card: 10px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  body { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; }
+  h1, h2, h3 { font-family: var(--font-display); text-transform: uppercase; font-weight: 400; }
+}
