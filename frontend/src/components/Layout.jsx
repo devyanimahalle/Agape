@@ -11,7 +11,7 @@ export default function Layout() {
       <header className="on-ink bg-ink text-canvas">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 md:px-10">
           <Link to="/" className="font-display text-2xl uppercase leading-none tracking-[0.02em] text-brand-bright">Agape</Link>
-          <nav aria-label="Main" className="-mx-1 flex min-w-0 gap-1 overflow-x-auto">
+          <nav aria-label="Main" className="-ml-3 flex min-w-0 gap-1 overflow-x-auto md:ml-0">
             <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
             <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
             {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
