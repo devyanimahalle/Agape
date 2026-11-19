@@ -157,7 +157,7 @@ describe('motion and cursor styles (styles/index.css)', () => {
   })
 
   it('turns off the nav underline, card lift and field transitions under reduced motion', () => {
-    const reduced = CSS.slice(CSS.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+    const reduced = CSS.slice(CSS.indexOf('@media (prefers-reduced-motion: reduce)', CSS.indexOf('.cursor-dot-inner')))
     expect(reduced).toMatch(/\.nav-link::after[^{]*\{[^}]*transition: none/)
     expect(reduced).toMatch(/\.card-lift:hover \{ translate: none; \}/)
   })
@@ -171,5 +171,23 @@ describe('motion and cursor styles (styles/index.css)', () => {
   it('cards lift with the translate property, not a shadow', () => {
     expect(block('.card-lift:hover')).toMatch(/translate:\s*0 -3px/)
     expect(CSS).not.toMatch(/box-shadow:(?!\s*none)/)
+  })
+})
+
+describe('hero pickup visual styles', () => {
+  it('animates the stages and the window bar, with a static fallback under reduced motion', () => {
+    expect(CSS).toMatch(/\.pickup-stage \{[^}]*animation: agape-stage 9s linear infinite/)
+    expect(CSS).toMatch(/\.pickup-fill \{[^}]*animation: agape-window 9s linear infinite/)
+    const reduced = CSS.slice(CSS.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(reduced).toMatch(/\.pickup-stage, \.pickup-fill \{ animation: none; \}/)
+    expect(reduced).toMatch(/\.pickup-stage:first-child \{ background: var\(--color-brand-bright\)/)
+  })
+
+  it('uses only theme tokens (orange, toast, ink, canvas) for the stage colours', () => {
+    const i = CSS.indexOf('@keyframes agape-stage')
+    const frames = CSS.slice(i, CSS.indexOf('@keyframes agape-window'))
+    expect(frames).toMatch(/var\(--color-brand-bright\)/)
+    expect(frames).toMatch(/var\(--color-toast\)/)
+    expect(frames).not.toMatch(/#[0-9a-f]{3,6}/i)
   })
 })

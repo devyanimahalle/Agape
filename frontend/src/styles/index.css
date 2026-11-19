@@ -108,3 +108,21 @@ input, select, textarea { transition: background-color 0.18s; }
   .nav-link::after, .card-lift, input, select, textarea { transition: none; }
   .card-lift:hover { translate: none; }
 }
+
+/* Hero pickup visual: the three stages light up one after another (3s each), and the window bar fills over the same
+   9s loop. Rows are unlit until their turn. Static under reduced motion (first stage lit, bar part-filled). */
+@keyframes agape-stage {
+  0%, 28% { background: var(--color-brand-bright); color: var(--color-ink); }
+  34%, 100% { background: var(--color-toast); color: var(--color-canvas); }
+}
+@keyframes agape-window {
+  0% { transform: scaleX(0.04); }
+  90%, 100% { transform: scaleX(1); }
+}
+.pickup-stage { background: var(--color-toast); color: var(--color-canvas); animation: agape-stage 9s linear infinite; animation-delay: calc(var(--i, 0) * 3s); }
+.pickup-fill { transform-origin: left; animation: agape-window 9s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pickup-stage, .pickup-fill { animation: none; }
+  .pickup-stage:first-child { background: var(--color-brand-bright); color: var(--color-ink); }
+  .pickup-fill { transform: scaleX(0.6); }
+}
