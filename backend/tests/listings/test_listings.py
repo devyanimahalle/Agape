@@ -88,7 +88,7 @@ def test_create_ngo_forbidden(client):
     assert r.status_code == 403 and r.json()["code"] == "FORBIDDEN"
 
 
-@pytest.mark.parametrize("category", ["restaurant", "caterer"])
+@pytest.mark.parametrize("category", ["restaurant", "caterer", "general"])
 def test_create_unverified_provider_blocked(client, db, category):
     t = make_provider(client, db, category=category, verified=False)
     r = create(client, t)
@@ -96,9 +96,40 @@ def test_create_unverified_provider_blocked(client, db, category):
     assert r.json()["code"] == "NOT_VERIFIED"
 
 
-def test_create_general_provider_needs_no_verification(client, db):
-    t = make_provider(client, db, email="g@example.com", category="general", verified=False)
+def test_general_provider_can_list_once_approved(client, db):
+    t = make_provider(client, db, email="g@example.com", category="general", verified=True)
     assert create(client, t).status_code == 201
+
+
+@pytest.mark.parametrize("category", ["restaurant", "caterer", "general"])
+def test_mine_unverified_provider_blocked(client, db, category):
+    t = make_provider(client, db, email=f"m-{category}@example.com", category=category, verified=False)
+    r = client.get(f"{API}/listings/mine", headers=auth_header(t))
+    assert r.status_code == 403
+    assert r.json()["code"] == "NOT_VERIFIED"
+
+
+def test_available_shows_other_donors_open_listings_only(client, db):
+    mine = make_provider(client, db, email="a@example.com", category="restaurant")
+    create(client, mine, title="Mine")
+    # a second, separately verified donor
+    payload = dict(PROVIDER, email="b@example.com", category="caterer")
+    other = client.post(f"{API}/auth/register", json=payload).json()["access_token"]
+    db.query(ProviderProfile).filter(ProviderProfile.category == "caterer").update({"verification_status": "approved"})
+    db.commit()
+    create(client, other, title="Theirs")
+
+    seen = client.get(f"{API}/listings/available", headers=auth_header(mine)).json()
+    assert [r["title"] for r in seen] == ["Theirs"]
+    assert seen[0]["org_name"]
+    own = client.get(f"{API}/listings/mine", headers=auth_header(mine)).json()
+    assert [r["title"] for r in own] == ["Mine"]
+
+
+def test_available_requires_an_approved_provider(client, db):
+    t = make_provider(client, db, email="u@example.com", verified=False)
+    assert client.get(f"{API}/listings/available", headers=auth_header(t)).status_code == 403
+    assert client.get(f"{API}/listings/available").status_code == 401
 
 
 @pytest.mark.parametrize(

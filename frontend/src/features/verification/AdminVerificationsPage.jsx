@@ -4,9 +4,9 @@ import { listVerifications, decideVerification, fetchDocumentUrl } from './api'
 import Page from './components/Page'
 import { ServerAlert, RejectionBanner, STATUS_TONE, inputCls, labelCls } from './components/fields'
 
-const TYPE_LABEL = { provider_step1: 'Donor: step 1', provider_step2: 'Donor: step 2', ngo: 'NGO onboarding' }
+const TYPE_LABEL = { provider: 'Donor verification', ngo: 'NGO onboarding' }
 const STATUSES = ['', 'pending', 'approved', 'rejected']
-const TYPES = ['', 'provider_step1', 'provider_step2', 'ngo']
+const TYPES = ['', 'provider', 'ngo']
 const SUBTITLE = 'Review donor and NGO verification requests. Documents open privately and are never public.'
 
 const filterCls = 'mt-1.5 rounded-[6px] bg-panel px-4 py-3 text-sm font-normal capitalize'
@@ -148,7 +148,7 @@ function VerificationCard({ item, onDecide }) {
   }
 
   const isPending = item.status === 'pending'
-  const docs = item.document_ids ?? []
+  const docs = item.documents ?? []
   const title = item.org_name || item.entity_name || item.user_email
 
   return (
@@ -168,9 +168,9 @@ function VerificationCard({ item, onDecide }) {
         <dl className="grid gap-2 sm:grid-cols-2">
           {item.reg_number && <Detail label="Registration">{item.reg_number}</Detail>}
           {item.entity_name && item.type !== 'ngo' && <Detail label="Business name">{item.entity_name}</Detail>}
-          {item.pan_masked && <Detail label="PAN">{item.pan_masked}</Detail>}
-          {item.aadhaar_masked && <Detail label="Aadhaar">{item.aadhaar_masked}</Detail>}
-          {item.fssai_number && <Detail label="FSSAI">{item.fssai_number}</Detail>}
+          {item.pan_masked && <Detail label="PAN (masked)">{item.pan_masked}</Detail>}
+          {item.aadhaar_masked && <Detail label="Aadhaar (masked)">{item.aadhaar_masked}</Detail>}
+          {item.fssai_number && <Detail label="FSSAI number">{item.fssai_number}</Detail>}
           <Detail label="Submitted">{new Date(item.submitted_at).toLocaleString()}</Detail>
         </dl>
 
@@ -178,9 +178,9 @@ function VerificationCard({ item, onDecide }) {
         <ServerAlert msg={msg} />
 
         <div className="flex flex-wrap gap-2">
-          {docs.map((id, i) => (
-            <Button key={id} variant="ghost" onClick={() => setDocId(id)}>
-              {docs.length > 1 ? `View document ${i + 1}` : 'View document'}
+          {docs.map((d) => (
+            <Button key={d.id} variant="ghost" onClick={() => setDocId(d.id)}>
+              {`View ${d.label ?? 'document'}`}
             </Button>
           ))}
           {isPending && (

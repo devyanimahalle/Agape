@@ -40,7 +40,7 @@ Setup
 - [ ] Frontend: `VITE_USE_MOCKS=false npm run dev` (or set it in `frontend/.env` and restart)
 - [ ] Backend tests: Role B's suite and Role D's `pytest tests/reservations` (needs PostgreSQL via `TEST_DATABASE_URL`)
 
-Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/`lng`, an approved restaurant donor and three open listings near the NGO.
+Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/`lng`, an approved restaurant donor and three open listings near the NGO, with no verification requests or proofs. Existing accounts are never overwritten, so approvals survive restarts.
 - [ ] Demo logins: NGO `ngo@agape.demo` / `Ngo@12345`, Donor `provider@agape.demo` / `Provider@123`, Admin `admin@agape.demo` / `Admin@123`.
 - [ ] To test the unapproved path, register a second NGO through `POST /api/v1/auth/register` (it starts as `pending`).
 
@@ -69,23 +69,23 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] A NGO or Donor opening `/admin`, `/admin/proofs` or `/admin/users` sees "Not available for your role".
 - [ ] Live stack: `admin@agape.demo` sees real counts at `/admin`; the proof queue is empty until a proof exists. Backend: `pytest tests/admin tests/impact`.
 
-## Verification (Role C)
-- [ ] Demo mode, **Donor**: `/provider` shows the Verification page, an orange band, "Not submitted" and the two tabs. Step 2 is disabled until step 1 is approved. Submitting needs a business name, a document, a valid PAN (`ABCDE1234F`) and a 12-digit Aadhaar; bad values show inline errors.
+## Verification (Role C): one combined donor request
+- [ ] Demo mode, **Donor**: `/provider` shows the orange "Verification" band, the status and two tabs. Step 2 is locked until step 1 is complete. Step 1 asks for business name, registration document, PAN (`ABCDE1234F`) and a 12-digit Aadhaar; bad values show inline errors; **Continue to step 2** sends nothing.
+- [ ] Step 2 asks for the FSSAI number (14 digits) and certificate; **Submit for review** sends both steps together. Afterwards the page shows "Under review" with the PAN and Aadhaar masked (`XXXXX1234F`, `XXXX-XXXX-1098`); the full numbers are never shown.
 - [ ] Demo mode, **NGO**: `/ngo/onboarding` (header link **Onboarding**) asks for a registration number and certificate.
-- [ ] Demo mode, **Admin**: `/admin/verifications` (header link **Verifications**) lists requests; filter by status and type; Approve works, Reject needs a reason; **View document** opens the private file in a viewer.
-- [ ] Live stack: register a restaurant donor, submit step 1 at `/provider`, then sign in as `admin@agape.demo` and approve it at `/admin/verifications`; the donor's step 2 tab unlocks. An NGO submits at `/ngo/onboarding`; approval flips `ngo_profiles.status`.
-- [ ] Wrong roles see "Not available for your role". Backend: `pytest tests/verification`.
+- [ ] Demo mode, **Admin**: `/admin/verifications` lists requests; a donor request is ONE card with the business name, masked PAN and Aadhaar, FSSAI number and both "View ..." document buttons; filter by status and type (Donor / NGO); Approve works, Reject needs a reason.
+- [ ] Live stack, new donor (any category, including home kitchen): register, sign in, complete both steps at `/provider`. At `/admin/verifications` (as `admin@agape.demo`) there is exactly one request for that donor with both documents. Approve it; the donor opens `/provider/listings` and the form is there.
+- [ ] Live stack, new NGO: register, sign in. `/ngo` and `/ngo/reservations` show "Verification needed" and no listings; **Go to NGO onboarding**, submit; the request appears in the admin queue straight away. After approval `/ngo` shows the board (an already-open tab unlocks on reload or navigation).
+- [ ] Wrong roles see "Not available for your role". Backend: `pytest tests/verification tests/auth`.
 
 ## Donor listings (`/provider/listings`)
-- [ ] Demo mode, **Donor**: the header shows **Listings** and **Verification**; `/provider` has an "Open listings" card. `/provider/listings` shows the orange "Surplus listings" band, a "New listing" form on the left and "Your listings" on the right (two sample listings, each with "about N (estimate)").
+- [ ] Demo mode, **Donor**: the header shows **Listings** and **Verification**; `/provider` has an "Open listings" card. `/provider/listings` shows the "Surplus listings" band, a "New listing" form on the left, "Your listings" on the right (two samples, each "about N (estimate)") and, below, "Open on the platform" with two other donors' listings.
 - [ ] Press **List this food** with the form empty: inline errors for the name, food type, quantity and coordinates; nothing is sent. A latitude of `120` is refused.
-- [ ] Fill in a name, food type, quantity (try both `portions` and `kg`), keep the prefilled window and enter `28.6139` / `77.2090`: the listing appears at the top of "Your listings" as Available, with a green notice "about N meals (an estimate)".
-- [ ] **Use my current location** fills the coordinates (or explains that the location was not shared).
-- [ ] Live stack, `provider@agape.demo` (approved restaurant): the page loads the seeded listings from `GET /listings/mine` and a new listing also appears on the NGO board (`/ngo`, signed in as `ngo@agape.demo`).
-- [ ] Live stack, gating: register a new restaurant donor (not yet approved). `/provider/listings` shows "Get verified before you list food" with a link to `/provider` and no form; calling `POST /api/v1/listings` directly returns 403 `NOT_VERIFIED`. After an admin approves step 1 at `/admin/verifications` the form appears. General (home kitchen) donors skip verification.
+- [ ] Fill in a name, food type, quantity (try `portions` and `kg`), keep the prefilled window and enter `28.6139` / `77.2090`: the listing appears at the top of "Your listings" as Available, with a green notice "about N meals (an estimate)". **Use my current location** fills the coordinates.
+- [ ] Live stack, `provider@agape.demo` (approved out of the box): the seeded listings load under "Your listings"; listings from other verified donors show under "Open on the platform"; a listing created by any verified donor appears on the verified NGO board (`/ngo`, signed in as `ngo@agape.demo`) and in the demo donor's "Open on the platform".
+- [ ] Live stack, gating: a donor who is not approved (new account, pending or rejected, any category) sees "Verification needed" with a link to `/provider` and no form; `POST /api/v1/listings` and `GET /api/v1/listings/mine` return 403 `NOT_VERIFIED`.
 
-## Seeded demo items for the admin queues
-After `python -m app.db.seed` (run it with the same `PRIVATE_UPLOAD_DIR` you start the API with; with none set it uses `backend/.private_uploads`):
-- [ ] `/admin/verifications` (as `admin@agape.demo`): one pending NGO request from `pending.ngo@agape.demo` ("Demo Pending NGO Trust") with a viewable registration PDF. Approve it and `pending.ngo@agape.demo` becomes a verified NGO.
-- [ ] `/admin/proofs`: one pending proof, "Rajma chawal, 18 portions (picked up)", collected by Demo Helping Hands Trust, with a viewable photo. Review it with a star rating.
-- [ ] Re-running the seed adds nothing twice, and it does not put an item back to pending after an admin has decided it. To restore both queues, delete `backend/agape_dev.db` and re-seed.
+## Admin: clean slate before a live demo (`/admin/users`)
+- [ ] Each donor and NGO row has a **Delete** button (admin rows and your own row have none). It asks for confirmation, then removes the account with its requests, listings, proofs and files.
+- [ ] **Reset demo accounts** (top right) asks for confirmation and deletes every donor and NGO account, keeping admins; the verification and proof queues are emptied with them. Run `python -m app.db.seed` afterwards to bring back the demo donor and NGO (admins and anything else are untouched), then register and verify new accounts from scratch.
+- [ ] On a phone-width screen the users list is stacked cards with the same Delete button.

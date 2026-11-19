@@ -49,6 +49,16 @@ export async function patchUser(userId, data) {
   return api(`/admin/users/${userId}`, { method: 'PATCH', json: data });
 }
 
+export async function deleteUser(userId) {
+  if (USE_MOCK) return { deleted: 1 };
+  return api(`/admin/users/${userId}`, { method: 'DELETE' });
+}
+
+export async function resetAccounts() {
+  if (USE_MOCK) return { deleted: MOCK_USERS.filter((u) => u.role !== 'admin').length };
+  return api('/admin/users/reset', { method: 'POST' });
+}
+
 export async function fetchProofs(reviewStatus) {
   if (USE_MOCK) {
     if (reviewStatus) return MOCK_PROOFS.filter(p => p.review_status === reviewStatus);

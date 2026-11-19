@@ -1,8 +1,9 @@
 """Admin business logic / service layer."""
+from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,12 +16,14 @@ from . import schemas
 
 try:
     from app.db.models import (
+        Document,
         Listing,
         NgoProfile,
         Proof,
         ProviderProfile,
         Rating,
         User,
+        VerificationRequest,
     )
 except ImportError:
     from backend.app.db.models import (
@@ -147,6 +150,67 @@ def patch_user(
     db.commit()
     db.refresh(user)
     return _user_to_out(user)
+
+
+def _wipe_users(db: Session, user_ids: list[int]) -> int:
+    """Delete these accounts and everything that depends on them, in one transaction.
+
+    Foreign keys are not enforced by every database we run on (SQLite), so dependants are removed explicitly:
+    ratings and proofs on their listings, their documents (files too), verification requests, their listings, and
+    their profiles. Listings an NGO had reserved on another donor's behalf are released (cancelled), not deleted.
+    """
+    if not user_ids:
+        return 0
+    own_listing_ids = list(db.scalars(select(Listing.id).where(Listing.provider_id.in_(user_ids))))
+    reserved_listing_ids = list(db.scalars(select(Listing.id).where(Listing.reserved_by_ngo_id.in_(user_ids))))
+    touched_listings = own_listing_ids + reserved_listing_ids
+
+    if touched_listings:
+        db.execute(delete(Rating).where(Rating.listing_id.in_(touched_listings)))
+    db.execute(delete(Proof).where(Proof.ngo_id.in_(user_ids)))
+    if own_listing_ids:
+        db.execute(delete(Proof).where(Proof.listing_id.in_(own_listing_ids)))
+
+    for doc in db.scalars(select(Document).where(Document.owner_id.in_(user_ids))).all():
+        try:
+            Path(doc.private_path).unlink(missing_ok=True)
+        except OSError:
+            pass
+        db.delete(doc)
+    db.flush()
+
+    db.execute(update(VerificationRequest).where(VerificationRequest.reviewed_by.in_(user_ids)).values(reviewed_by=None))
+    db.execute(delete(VerificationRequest).where(VerificationRequest.subject_user_id.in_(user_ids)))
+    if reserved_listing_ids:
+        db.execute(
+            update(Listing)
+            .where(Listing.id.in_(reserved_listing_ids), Listing.provider_id.notin_(user_ids))
+            .values(reserved_by_ngo_id=None, status="cancelled")
+        )
+    if own_listing_ids:
+        db.execute(delete(Listing).where(Listing.id.in_(own_listing_ids)))
+    db.execute(delete(ProviderProfile).where(ProviderProfile.user_id.in_(user_ids)))
+    db.execute(delete(NgoProfile).where(NgoProfile.user_id.in_(user_ids)))
+    db.execute(delete(User).where(User.id.in_(user_ids)))
+    db.commit()
+    return len(user_ids)
+
+
+def delete_user(db: Session, user_id: int, acting_admin_id: int) -> schemas.DeleteResult:
+    if user_id == acting_admin_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot delete your own account.")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "admin":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Admin accounts cannot be deleted here.")
+    return schemas.DeleteResult(deleted=_wipe_users(db, [user_id]))
+
+
+def reset_accounts(db: Session, acting_admin_id: int) -> schemas.DeleteResult:
+    """Delete every donor and NGO account (admins are kept) so a demo can start from a clean slate."""
+    ids = [i for i in db.scalars(select(User.id).where(User.role != "admin")) if i != acting_admin_id]
+    return schemas.DeleteResult(deleted=_wipe_users(db, ids))
 
 
 # ---------------------------------------------------------------------------

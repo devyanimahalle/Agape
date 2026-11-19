@@ -29,11 +29,11 @@ def test_register_provider_restaurant_starts_pending(client, provider_payload):
     assert me["profile"]["category"] == "restaurant"
 
 
-def test_register_general_provider_is_approved(client, provider_payload):
+def test_register_general_provider_also_starts_pending(client, provider_payload):
     provider_payload["category"] = "general"
     token = register(client, provider_payload).json()["access_token"]
     me = client.get(f"{API}/auth/me", headers=auth_header(token)).json()
-    assert me["verification_status"] == "approved"
+    assert me["verification_status"] == "pending"
 
 
 def test_register_ngo_starts_pending(client, ngo_payload):
@@ -270,12 +270,15 @@ def test_require_verified_allows_approved_restaurant(guarded, client, db, provid
     assert client.get("/_t/verified", headers=auth_header(token)).status_code == 200
 
 
-def test_require_verified_allows_general_even_if_status_not_approved(
+def test_require_verified_blocks_general_provider_until_approved(
     guarded, client, db, provider_payload
 ):
     provider_payload["category"] = "general"
     token = _token(client, provider_payload)
-    db.query(ProviderProfile).update({"verification_status": "pending"})
+    r = client.get("/_t/verified", headers=auth_header(token))
+    assert r.status_code == 403
+    assert r.json()["code"] == "NOT_VERIFIED"
+    db.query(ProviderProfile).update({"verification_status": "approved"})
     db.commit()
     assert client.get("/_t/verified", headers=auth_header(token)).status_code == 200
 

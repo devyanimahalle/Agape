@@ -56,6 +56,10 @@ class UserPatch(BaseModel):
     is_active: bool
 
 
+class DeleteResult(BaseModel):
+    deleted: int
+
+
 # --- Proofs ---
 
 

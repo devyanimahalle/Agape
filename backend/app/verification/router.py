@@ -1,11 +1,8 @@
-"""Verification router — provider endpoints (prefix /verification)
-and admin endpoints (prefix /admin).
+"""Verification router: provider and NGO endpoints (prefix /verification) and admin endpoints (prefix /admin).
 
-Role B: add these two lines to ROUTERS in app/main.py:
-    from app.verification.router import router as verification_router, admin_router
-    # Then in ROUTERS list:
-    verification_router,   # Role C — prefix /verification
-    admin_router,          # Role C — prefix /admin
+Registered in app/main.py ROUTERS:
+    verification_router,   # Role C: prefix /verification
+    admin_router,          # Role C: prefix /admin
 """
 from __future__ import annotations
 
@@ -26,27 +23,29 @@ admin_router = APIRouter(prefix="/admin", tags=["admin-verification"])
 
 
 # ---------------------------------------------------------------------------
-# Provider Step 1
+# Provider: one combined request (identity and business + FSSAI)
 # ---------------------------------------------------------------------------
 
-@router.post("/provider/step1", status_code=201)
-def provider_step1(
+@router.post("/provider", status_code=201)
+def provider_verification(
     business_proof: UploadFile = File(...),
+    entity_name: str = Form(...),
     pan_number: str | None = Form(None),
     aadhaar_number: str | None = Form(None),
     passport: UploadFile | None = File(None),
-    entity_name: str = Form(...),
+    fssai_number: str = Form(...),
+    fssai_cert: UploadFile = File(...),
     user=Depends(require_role("provider")),
     db: Session = Depends(get_db),
+    fssai_verifier: FssaiVerifier = Depends(get_fssai_verifier),
 ):
-    profile = db.get(ProviderProfile, user.id)
-    if profile is None or profile.category == "general":
-        raise AppError(403, "NOT_REQUIRED", "General providers do not require verification")
+    """Every provider, whatever the category, submits identity and business details plus the FSSAI licence in a
+    single request that an admin approves or rejects as a whole."""
+    if db.get(ProviderProfile, user.id) is None:
+        raise AppError(403, "FORBIDDEN", "No provider profile for this account")
 
-    # Validate and mask PAN / Aadhaar
     masked_pan: str | None = None
     masked_aadhaar: str | None = None
-
     if pan_number:
         service.validate_pan(pan_number)
         masked_pan = service.mask_pan(pan_number)
@@ -54,77 +53,30 @@ def provider_step1(
         service.validate_aadhaar(aadhaar_number)
         masked_aadhaar = service.mask_aadhaar(aadhaar_number)
 
-    # Must supply at least one ID: (pan+aadhaar) or passport
     has_pan_aadhaar = bool(pan_number and aadhaar_number)
-    has_passport = passport is not None and passport.filename
+    has_passport = passport is not None and bool(passport.filename)
     if not has_pan_aadhaar and not has_passport:
-        raise AppError(
-            422, "ID_REQUIRED",
-            "Provide either PAN + Aadhaar number or a passport file"
-        )
-
-    # Create the verification request (blocks if already pending)
-    vr = service.submit_provider_step1(db, user.id, masked_pan, masked_aadhaar, entity_name)
-
-    # Save documents — business_proof always required
-    save_upload(db, business_proof, user.id, "business_proof")
-
-    if pan_number and aadhaar_number:
-        # Store a placeholder pan doc; actual number is masked in the VR
-        # We need a file — reuse business_proof for pan record is wrong;
-        # for step1 the pan/aadhaar numbers are stored in the VR,
-        # no separate document file is needed unless uploading actual scans.
-        # If a separate pan/aadhaar scan upload is desired, it can be optional.
-        pass
-
-    if has_passport:
-        save_upload(db, passport, user.id, "passport")
-
-    db.commit()
-    return {
-        "id": vr.id,
-        "step": 1,
-        "status": vr.status,
-        "masked_pan": vr.masked_pan,
-        "masked_aadhaar": vr.masked_aadhaar,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Provider Step 2
-# ---------------------------------------------------------------------------
-
-@router.post("/provider/step2", status_code=201)
-def provider_step2(
-    fssai_cert: UploadFile = File(...),
-    fssai_number: str = Form(...),
-    entity_name: str = Form(...),
-    user=Depends(require_role("provider")),
-    db: Session = Depends(get_db),
-    fssai_verifier: FssaiVerifier = Depends(get_fssai_verifier),
-):
-    profile = db.get(ProviderProfile, user.id)
-    if profile is None or profile.category == "general":
-        raise AppError(403, "NOT_REQUIRED", "General providers do not require verification")
+        raise AppError(422, "ID_REQUIRED", "Provide either PAN + Aadhaar number or a passport file")
 
     service.validate_fssai(fssai_number)
-    fssai_verifier.verify(fssai_number)  # may raise AppError if external check fails
+    fssai_verifier.verify(fssai_number)  # may raise AppError if the external check fails
 
-    vr = service.submit_provider_step2(db, user.id, fssai_number, entity_name)
+    vr = service.submit_provider(db, user.id, masked_pan, masked_aadhaar, fssai_number, entity_name)
+
+    save_upload(db, business_proof, user.id, "business_proof")
+    if has_passport:
+        save_upload(db, passport, user.id, "passport")
     save_upload(db, fssai_cert, user.id, "fssai_cert")
 
     db.commit()
     return {
         "id": vr.id,
-        "step": 2,
         "status": vr.status,
+        "masked_pan": vr.masked_pan,
+        "masked_aadhaar": vr.masked_aadhaar,
         "fssai_number": vr.fssai_number,
     }
 
-
-# ---------------------------------------------------------------------------
-# Provider status
-# ---------------------------------------------------------------------------
 
 @router.get("/provider/status")
 def provider_status(

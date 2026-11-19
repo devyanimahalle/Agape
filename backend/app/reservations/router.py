@@ -72,7 +72,7 @@ def complete(
 @router.get("/ngo/reservations", response_model=list[ReservationOut])
 def my_reservations(
     status: str | None = Query(default=None, pattern="^(listed|reserved|completed|cancelled|expired)$"),
-    user=Depends(require_ngo),
+    user=Depends(require_verified_ngo),
     db: Session = Depends(get_db),
 ):
     return [

@@ -3,30 +3,18 @@ const wait = (v) => new Promise((r) => setTimeout(() => r(structuredClone(v)), 1
 const err = (status, code, detail) => Object.assign(new Error(detail), { status, code, detail })
 
 // ── Provider state ────────────────────────────────────────────────────────────
-let providerVerification = {
-  step1: { status: 'not_submitted', rejection_reason: null },
-  step2: { status: 'not_submitted', rejection_reason: null },
-  overall: 'not_submitted',
-}
+let providerVerification = { status: 'not_submitted', rejection_reason: null }
 
 export const getProviderVerification = () => wait(providerVerification)
 
-export function submitProviderStep1({ pan, aadhaar }) {
-  if (!pan || !aadhaar) return Promise.reject(err(422, 'VALIDATION_ERROR', 'PAN and Aadhaar are required'))
-  if (providerVerification.step1.status === 'pending')
-    return Promise.reject(err(409, 'DUPLICATE_PENDING', 'A pending submission already exists'))
-  providerVerification.step1 = { status: 'pending', rejection_reason: null, pan_masked: pan.slice(0, 2) + '***' + pan.slice(-2), aadhaar_masked: '****' + aadhaar.slice(-4) }
-  providerVerification.overall = 'pending'
-  return wait(providerVerification)
-}
-
-export function submitProviderStep2(fields) {
-  if (providerVerification.step1.status !== 'approved')
-    return Promise.reject(err(403, 'STEP_GATING', 'Complete step 1 first'))
-  if (providerVerification.step2.status === 'pending')
-    return Promise.reject(err(409, 'DUPLICATE_PENDING', 'A pending submission already exists'))
-  providerVerification.step2 = { status: 'pending', rejection_reason: null }
-  providerVerification.overall = 'pending'
+export function submitProviderVerification({ entity_name, pan, aadhaar, fssai_number }) {
+  if (!pan || !aadhaar || !fssai_number) return Promise.reject(err(422, 'VALIDATION_ERROR', 'PAN, Aadhaar and FSSAI number are required'))
+  if (providerVerification.status === 'pending')
+    return Promise.reject(err(409, 'ALREADY_PENDING', 'A verification request is already pending review'))
+  providerVerification = {
+    status: 'pending', rejection_reason: null, entity_name,
+    masked_pan: 'XXXXX' + pan.slice(-5), masked_aadhaar: 'XXXX-XXXX-' + aadhaar.slice(-4), fssai_number,
+  }
   return wait(providerVerification)
 }
 
@@ -45,10 +33,10 @@ export function submitNgoOnboarding({ reg_number }) {
 
 // ── Admin state ───────────────────────────────────────────────────────────────
 let verifications = [
-  { id: 1, type: 'provider_step1', status: 'pending', user_id: 101, user_email: 'ravi@demo.com', submitted_at: new Date().toISOString(), document_ids: ['doc-1'], pan_masked: 'AB***Z', aadhaar_masked: '****5678' },
-  { id: 2, type: 'ngo', status: 'pending', user_id: 202, user_email: 'asha@ngo.demo', submitted_at: new Date().toISOString(), document_ids: ['doc-2'], org_name: 'Asha Foundation', reg_number: 'REG/2023/001' },
-  { id: 3, type: 'provider_step2', status: 'approved', user_id: 103, user_email: 'meena@demo.com', submitted_at: new Date().toISOString(), document_ids: ['doc-3'] },
-  { id: 4, type: 'provider_step1', status: 'rejected', rejection_reason: 'PAN does not match records', user_id: 104, user_email: 'arjun@demo.com', submitted_at: new Date().toISOString(), document_ids: ['doc-4'] },
+  { id: 1, type: 'provider', status: 'pending', user_id: 101, user_email: 'ravi@demo.com', org_name: 'Ravi Kitchen', entity_name: "Ravi's Kitchen", submitted_at: new Date().toISOString(), masked_pan: 'XXXXX1234F', masked_aadhaar: 'XXXX-XXXX-5678', fssai_number: '12345678901234', documents: [{ id: 'doc-1', kind: 'business_proof', label: 'Business registration' }, { id: 'doc-5', kind: 'fssai_cert', label: 'FSSAI certificate' }] },
+  { id: 2, type: 'ngo', status: 'pending', user_id: 202, user_email: 'asha@ngo.demo', submitted_at: new Date().toISOString(), documents: [{ id: 'doc-2', kind: 'ngo_reg', label: 'NGO registration' }], org_name: 'Asha Foundation', reg_number: 'REG/2023/001' },
+  { id: 3, type: 'provider', status: 'approved', user_id: 103, user_email: 'meena@demo.com', org_name: 'Meena Caterers', entity_name: 'Meena Caterers', submitted_at: new Date().toISOString(), masked_pan: 'XXXXX9876K', masked_aadhaar: 'XXXX-XXXX-4321', fssai_number: '98765432109876', documents: [{ id: 'doc-3', kind: 'business_proof', label: 'Business registration' }, { id: 'doc-6', kind: 'fssai_cert', label: 'FSSAI certificate' }] },
+  { id: 4, type: 'ngo', status: 'rejected', rejection_reason: 'Registration number does not match records', user_id: 104, user_email: 'arjun@ngo.demo', submitted_at: new Date().toISOString(), documents: [{ id: 'doc-4', kind: 'ngo_reg', label: 'NGO registration' }], org_name: 'Arjun Trust', reg_number: 'REG/2020/777' },
 ]
 
 export function listVerifications({ status, type } = {}) {

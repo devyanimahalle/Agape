@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Badge, Button, Card, EmptyState, LoadingState, StatusPill } from '../../components/ui';
-import { fetchUsers, patchUser } from './api';
+import { Badge, Button, Card, EmptyState, LoadingState, Modal, StatusPill } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
+import { deleteUser, fetchUsers, patchUser, resetAccounts } from './api';
 import Page from './components/Page';
 import Toast from './components/Toast';
 
@@ -11,6 +12,9 @@ const ROLE_LABEL = { admin: 'Admin', provider: 'Donor', ngo: 'NGO' };
 const SUBTITLE = 'Manage platform users and their access.';
 
 export default function AdminUsers() {
+  const { user: me } = useAuth();
+  const [confirm, setConfirm] = useState(null); // { kind: 'user', user } | { kind: 'reset' }
+  const [deleting, setDeleting] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,6 +71,30 @@ export default function AdminUsers() {
     }
   };
 
+  const canDelete = (user) => user.role !== 'admin' && user.id !== me?.id;
+  const accountCount = users.filter((u) => u.role !== 'admin').length;
+
+  const handleConfirmDelete = async () => {
+    if (!confirm) return;
+    setDeleting(true);
+    try {
+      if (confirm.kind === 'reset') {
+        const { deleted } = await resetAccounts();
+        setUsers((prev) => prev.filter((u) => u.role === 'admin'));
+        showToast(`Reset done. ${deleted} account${deleted === 1 ? '' : 's'} deleted.`);
+      } else {
+        await deleteUser(confirm.user.id);
+        setUsers((prev) => prev.filter((u) => u.id !== confirm.user.id));
+        showToast(`${confirm.user.name} was deleted.`);
+      }
+      setConfirm(null);
+    } catch (err) {
+      showToast(`Failed to delete: ${err.message}`, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getOrgInfo = (user) => (user.profile ? user.profile.org_name || '—' : '—');
 
   const getVerificationInfo = (user) => {
@@ -96,16 +124,21 @@ export default function AdminUsers() {
     <Page title="Users" subtitle={SUBTITLE}>
       <Toast toast={toast} />
 
-      <label className="block max-w-md text-xs font-semibold">
-        Search users
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Name, email, role or organisation"
-          className="mt-1.5 w-full rounded-[6px] bg-panel px-4 py-3 text-sm font-normal"
-        />
-      </label>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <label className="block w-full max-w-md text-xs font-semibold">
+          Search users
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name, email, role or organisation"
+            className="mt-1.5 w-full rounded-[6px] bg-panel px-4 py-3 text-sm font-normal"
+          />
+        </label>
+        <Button variant="danger" disabled={accountCount === 0} onClick={() => setConfirm({ kind: 'reset' })}>
+          Reset demo accounts
+        </Button>
+      </div>
 
       <div className="mt-6">
         {filteredUsers.length === 0 ? (
@@ -127,14 +160,19 @@ export default function AdminUsers() {
                       <Badge tone={user.is_active ? 'ok' : 'bad'}>{user.is_active ? 'Active' : 'Inactive'}</Badge>
                     </div>
                     {getOrgInfo(user) !== '—' && <p className="mt-3 text-sm">{getOrgInfo(user)}</p>}
-                    <Button
-                      variant={user.is_active ? 'dark' : 'brand'}
-                      onClick={() => handleToggleActive(user)}
-                      disabled={togglingId === user.id}
-                      className="mt-4 !px-3 !py-1.5 !text-xs"
-                    >
-                      {togglingId === user.id ? '…' : user.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        variant={user.is_active ? 'dark' : 'brand'}
+                        onClick={() => handleToggleActive(user)}
+                        disabled={togglingId === user.id}
+                        className="!px-3 !py-1.5 !text-xs"
+                      >
+                        {togglingId === user.id ? '…' : user.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      {canDelete(user) && (
+                        <Button variant="danger" onClick={() => setConfirm({ kind: 'user', user })} className="!px-3 !py-1.5 !text-xs">Delete</Button>
+                      )}
+                    </div>
                   </Card>
                 </li>
               );
@@ -172,14 +210,19 @@ export default function AdminUsers() {
                           <Badge tone={user.is_active ? 'ok' : 'bad'}>{user.is_active ? 'Active' : 'Inactive'}</Badge>
                         </td>
                         <td className="px-5 py-4">
-                          <Button
-                            variant={user.is_active ? 'dark' : 'brand'}
-                            onClick={() => handleToggleActive(user)}
-                            disabled={togglingId === user.id}
-                            className="!px-3 !py-1.5 !text-xs"
-                          >
-                            {togglingId === user.id ? '…' : user.is_active ? 'Deactivate' : 'Activate'}
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant={user.is_active ? 'dark' : 'brand'}
+                              onClick={() => handleToggleActive(user)}
+                              disabled={togglingId === user.id}
+                              className="!px-3 !py-1.5 !text-xs"
+                            >
+                              {togglingId === user.id ? '…' : user.is_active ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            {canDelete(user) && (
+                              <Button variant="danger" onClick={() => setConfirm({ kind: 'user', user })} className="!px-3 !py-1.5 !text-xs">Delete</Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -195,6 +238,24 @@ export default function AdminUsers() {
       <p className="mt-3 text-right text-xs text-muted">
         Showing {filteredUsers.length} of {users.length} users
       </p>
+
+      <Modal
+        open={!!confirm}
+        onClose={() => !deleting && setConfirm(null)}
+        title={confirm?.kind === 'reset' ? 'Reset demo accounts?' : `Delete ${confirm?.user?.name ?? 'this account'}?`}
+      >
+        <p className="text-sm leading-relaxed text-muted">
+          {confirm?.kind === 'reset'
+            ? `This deletes all ${accountCount} donor and NGO accounts with their verification requests, listings, proofs and uploaded documents. Admin accounts are kept. It cannot be undone. Run the demo seed afterwards to restore the demo donor and NGO.`
+            : 'This deletes the account with its verification requests, listings, proofs and uploaded documents. It cannot be undone.'}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button variant="danger" onClick={handleConfirmDelete} disabled={deleting}>
+            {deleting ? 'Deleting…' : confirm?.kind === 'reset' ? 'Delete all accounts' : 'Delete account'}
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirm(null)} disabled={deleting}>Cancel</Button>
+        </div>
+      </Modal>
     </Page>
   );
 }

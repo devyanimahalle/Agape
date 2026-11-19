@@ -3,6 +3,7 @@ const VARIANT = {
   brand: 'bg-brand-bright text-ink hover:bg-brand', // dark text on orange; never white
   dark: 'bg-ink text-canvas hover:bg-toast',
   ghost: 'bg-transparent text-ink hover:underline',
+  danger: 'bg-bad-bg text-bad-ink hover:brightness-95', // destructive actions: the bad tint, never solid red
 }
 
 export default function Button({ variant = 'dark', type = 'button', className = '', ...props }) {

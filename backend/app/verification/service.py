@@ -1,4 +1,10 @@
-"""Verification service — business logic, no HTTP concerns."""
+"""Verification service: business logic, no HTTP concerns.
+
+A provider (donor) submits ONE combined verification request: identity and business details with their documents
+(step 1 in the UI) together with the FSSAI licence number and certificate (step 2 in the UI). The two UI steps are
+only a form wizard; the admin sees and decides a single request. NGOs submit one request with their registration.
+Only masked PAN and Aadhaar values are ever stored or returned.
+"""
 from __future__ import annotations
 
 import re
@@ -19,15 +25,16 @@ from app.errors import AppError
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_STEP1_PROVIDER_KINDS = {"business_proof", "pan", "aadhaar", "passport"}
-_STEP2_PROVIDER_KINDS = {"fssai_cert"}
+_PROVIDER_KINDS = {"business_proof", "pan", "aadhaar", "passport", "fssai_cert"}
 _NGO_KINDS = {"ngo_reg"}
+_SENSITIVE_KINDS = {"pan", "aadhaar", "passport"}
 
 _PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
 _AADHAAR_RE = re.compile(r"^\d{12}$")
 _FSSAI_RE = re.compile(r"^\d{14}$")
 
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+FAR_FUTURE = datetime(9999, 1, 1, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -53,87 +60,84 @@ def validate_fssai(fssai: str) -> None:
 
 
 def mask_pan(pan: str) -> str:
-    """Return masked PAN — first 6 chars replaced with X, last 4 kept."""
+    """Return masked PAN: first 5 chars replaced with X, last 5 kept."""
     return "XXXXX" + pan[-5:]
 
 
 def mask_aadhaar(aadhaar: str) -> str:
-    """Return masked Aadhaar — all but last 4 digits replaced with X."""
+    """Return masked Aadhaar: all but the last 4 digits replaced with X. The full number is never stored."""
     return "XXXX-XXXX-" + aadhaar[-4:]
 
 
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)  # SQLite returns naive datetimes
+
+
 # ---------------------------------------------------------------------------
-# Document-to-request linking helper
+# Document-to-request linking
 # ---------------------------------------------------------------------------
 
-def _docs_for_step(
-    db: Session,
-    owner_id: int,
-    kinds: set[str],
-    after: datetime,
-) -> list[Document]:
-    """Return non-deleted documents owned by `owner_id` with kind in `kinds`
-    created after `after`.
+def _docs_for_request(db: Session, vr: VerificationRequest, kinds: set[str]) -> list[Document]:
+    """Documents of `kinds` uploaded for this request (there is no FK column).
 
-    This links documents to a verification request without a FK column:
-    we find all documents of the relevant kinds created since the previous
-    review (or epoch if there was none). Documents uploaded before the
-    previous review are from an earlier attempt and are excluded.
+    A request owns the documents its subject uploaded after the previous request of the same type was decided and
+    before the next request of that type was created. Documents from an earlier attempt are excluded.
     """
-    rows = db.scalars(
-        select(Document).where(
-            Document.owner_id == owner_id,
-            Document.kind.in_(kinds),
-            Document.deleted_at.is_(None),
-            Document.created_at > after,
+    siblings = db.scalars(
+        select(VerificationRequest).where(
+            VerificationRequest.subject_user_id == vr.subject_user_id,
+            VerificationRequest.subject_type == vr.subject_type,
+            VerificationRequest.id != vr.id,
         )
     ).all()
-    return list(rows)
+    mine = _aware(vr.created_at)
+    lower = EPOCH
+    upper = FAR_FUTURE
+    for other in siblings:
+        created = _aware(other.created_at)
+        if created < mine:
+            if other.reviewed_at is not None:
+                lower = max(lower, _aware(other.reviewed_at))
+        elif created > mine:
+            upper = min(upper, created)
+    rows = db.scalars(
+        select(Document).where(
+            Document.owner_id == vr.subject_user_id,
+            Document.kind.in_(kinds),
+            Document.deleted_at.is_(None),
+        ).order_by(Document.id)
+    ).all()
+    return [d for d in rows if lower < _aware(d.created_at) < upper]
 
 
-def _last_review_time(
-    db: Session,
-    subject_user_id: int,
-    subject_type: str,
-    step: int,
-) -> datetime:
-    """Return the reviewed_at of the most recent non-pending request for this
-    subject+step, or EPOCH if none exists. Used to anchor document linking."""
-    row = db.scalar(
-        select(VerificationRequest.reviewed_at).where(
-            VerificationRequest.subject_user_id == subject_user_id,
-            VerificationRequest.subject_type == subject_type,
-            VerificationRequest.step == step,
-            VerificationRequest.status != "pending",
-        ).order_by(VerificationRequest.reviewed_at.desc())
+def _latest_request(db: Session, user_id: int, subject_type: str) -> VerificationRequest | None:
+    return db.scalar(
+        select(VerificationRequest)
+        .where(VerificationRequest.subject_user_id == user_id, VerificationRequest.subject_type == subject_type)
+        .order_by(VerificationRequest.created_at.desc(), VerificationRequest.id.desc())
     )
-    return row if row is not None else EPOCH
+
+
+def _block_if_pending(db: Session, user_id: int, subject_type: str) -> None:
+    latest = _latest_request(db, user_id, subject_type)
+    if latest is not None and latest.status == "pending":
+        raise AppError(409, "ALREADY_PENDING", "A verification request is already pending review")
 
 
 # ---------------------------------------------------------------------------
-# Provider Step 1
+# Provider: one combined request
 # ---------------------------------------------------------------------------
 
-def submit_provider_step1(
+def submit_provider(
     db: Session,
     provider_user_id: int,
     masked_pan: str | None,
     masked_aadhaar: str | None,
+    fssai_number: str,
     entity_name: str,
 ) -> VerificationRequest:
-    """Create (or resubmit after rejection) a step-1 verification request."""
-    # Block while pending
-    pending = db.scalar(
-        select(VerificationRequest).where(
-            VerificationRequest.subject_user_id == provider_user_id,
-            VerificationRequest.subject_type == "provider",
-            VerificationRequest.step == 1,
-            VerificationRequest.status == "pending",
-        )
-    )
-    if pending:
-        raise AppError(409, "ALREADY_PENDING", "A verification request is already pending review")
-
+    """Create (or resubmit after rejection) the provider's single combined verification request."""
+    _block_if_pending(db, provider_user_id, "provider")
     vr = VerificationRequest(
         subject_user_id=provider_user_id,
         subject_type="provider",
@@ -141,100 +145,43 @@ def submit_provider_step1(
         status="pending",
         masked_pan=masked_pan,
         masked_aadhaar=masked_aadhaar,
-        entity_name=entity_name,
-    )
-    db.add(vr)
-    db.flush()
-    return vr
-
-
-# ---------------------------------------------------------------------------
-# Provider Step 2
-# ---------------------------------------------------------------------------
-
-def submit_provider_step2(
-    db: Session,
-    provider_user_id: int,
-    fssai_number: str,
-    entity_name: str,
-) -> VerificationRequest:
-    """Create (or resubmit after rejection) a step-2 verification request."""
-    # Step 1 must be approved
-    step1 = db.scalar(
-        select(VerificationRequest).where(
-            VerificationRequest.subject_user_id == provider_user_id,
-            VerificationRequest.subject_type == "provider",
-            VerificationRequest.step == 1,
-            VerificationRequest.status == "approved",
-        )
-    )
-    if not step1:
-        raise AppError(403, "STEP1_NOT_APPROVED", "Step 1 verification must be approved before proceeding")
-
-    # Block while pending
-    pending = db.scalar(
-        select(VerificationRequest).where(
-            VerificationRequest.subject_user_id == provider_user_id,
-            VerificationRequest.subject_type == "provider",
-            VerificationRequest.step == 2,
-            VerificationRequest.status == "pending",
-        )
-    )
-    if pending:
-        raise AppError(409, "ALREADY_PENDING", "A step 2 verification request is already pending")
-
-    vr = VerificationRequest(
-        subject_user_id=provider_user_id,
-        subject_type="provider",
-        step=2,
-        status="pending",
         fssai_number=fssai_number,
         entity_name=entity_name,
     )
     db.add(vr)
     db.flush()
+    profile = db.get(ProviderProfile, provider_user_id)
+    if profile is not None and profile.verification_status != "approved":
+        profile.verification_status = "pending"
     return vr
 
 
-# ---------------------------------------------------------------------------
-# Provider status
-# ---------------------------------------------------------------------------
-
 def get_provider_status(db: Session, provider_user_id: int) -> dict:
-    """Return {step1, step2, overall} dicts with status and optional reason."""
-    def _latest(step: int) -> VerificationRequest | None:
-        return db.scalar(
-            select(VerificationRequest)
-            .where(
-                VerificationRequest.subject_user_id == provider_user_id,
-                VerificationRequest.subject_type == "provider",
-                VerificationRequest.step == step,
-            )
-            .order_by(VerificationRequest.created_at.desc())
-        )
+    """The provider's latest request as {status, reason, entity_name, masked_pan, masked_aadhaar, fssai_number}.
 
-    s1 = _latest(1)
-    s2 = _latest(2)
-
-    def _shape(vr: VerificationRequest | None) -> dict:
-        if vr is None:
-            return {"status": "not_submitted", "reason": None}
-        return {"status": vr.status, "reason": vr.reason}
-
-    s1_shape = _shape(s1)
-    s2_shape = _shape(s2)
-
-    # Overall: approved only if both approved; rejected if either rejected; else pending
-    if s1_shape["status"] == "approved" and s2_shape["status"] == "approved":
-        overall = "approved"
-    elif s1_shape["status"] == "rejected" or s2_shape["status"] == "rejected":
-        overall = "rejected"
-    elif s1_shape["status"] == "not_submitted":
-        overall = "not_submitted"
-    else:
-        overall = "pending"
-
-    return {"step1": s1_shape, "step2": s2_shape, "overall": overall}
+    `status` is not_submitted, pending, approved or rejected. An account an admin approved directly (for example the
+    seeded demo donor) has no request but an approved profile, and reads as approved.
+    """
+    vr = _latest_request(db, provider_user_id, "provider")
+    if vr is None:
+        profile = db.get(ProviderProfile, provider_user_id)
+        approved = profile is not None and profile.verification_status == "approved"
+        return {
+            "status": "approved" if approved else "not_submitted",
+            "reason": None,
+            "entity_name": profile.org_name if approved and profile else None,
+            "masked_pan": None,
+            "masked_aadhaar": None,
+            "fssai_number": None,
+        }
+    return {
+        "status": vr.status,
+        "reason": vr.reason,
+        "entity_name": vr.entity_name,
+        "masked_pan": vr.masked_pan,
+        "masked_aadhaar": vr.masked_aadhaar,
+        "fssai_number": vr.fssai_number,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -247,17 +194,7 @@ def submit_ngo(
     reg_number: str,
 ) -> VerificationRequest:
     """Create (or resubmit after rejection) an NGO verification request."""
-    # Block while pending
-    pending = db.scalar(
-        select(VerificationRequest).where(
-            VerificationRequest.subject_user_id == ngo_user_id,
-            VerificationRequest.subject_type == "ngo",
-            VerificationRequest.step == 1,
-            VerificationRequest.status == "pending",
-        )
-    )
-    if pending:
-        raise AppError(409, "ALREADY_PENDING", "A verification request is already pending review")
+    _block_if_pending(db, ngo_user_id, "ngo")
 
     # Update reg_number on profile
     profile = db.get(NgoProfile, ngo_user_id)
@@ -279,17 +216,15 @@ def submit_ngo(
 
 def get_ngo_status(db: Session, ngo_user_id: int) -> dict:
     """Return the NGO's latest verification request as {status, reason, reg_number, org_name}."""
-    vr = db.scalar(
-        select(VerificationRequest)
-        .where(
-            VerificationRequest.subject_user_id == ngo_user_id,
-            VerificationRequest.subject_type == "ngo",
-        )
-        .order_by(VerificationRequest.created_at.desc(), VerificationRequest.id.desc())
-    )
+    vr = _latest_request(db, ngo_user_id, "ngo")
     profile = db.get(NgoProfile, ngo_user_id)
+    if vr is None:
+        approved = profile is not None and profile.status == "approved"
+        status = "approved" if approved else "not_submitted"
+    else:
+        status = vr.status
     return {
-        "status": vr.status if vr else "not_submitted",
+        "status": status,
         "reason": vr.reason if vr else None,
         "reg_number": vr.entity_name if vr else (profile.reg_number if profile else None),
         "org_name": profile.org_name if profile else None,
@@ -300,29 +235,34 @@ def get_ngo_status(db: Session, ngo_user_id: int) -> dict:
 # Admin: list
 # ---------------------------------------------------------------------------
 
+_KIND_LABEL = {
+    "business_proof": "Business registration",
+    "passport": "Passport",
+    "fssai_cert": "FSSAI certificate",
+    "ngo_reg": "NGO registration",
+    "pan": "PAN",
+    "aadhaar": "Aadhaar",
+}
+
+
 def list_verifications(
     db: Session,
     status: str | None,
     subject_type: str | None,
 ) -> list[dict]:
-    """Return verification requests with subject info and document IDs."""
+    """Return verification requests with subject info and their documents."""
     q = select(VerificationRequest)
     if status:
         q = q.where(VerificationRequest.status == status)
     if subject_type:
         q = q.where(VerificationRequest.subject_type == subject_type)
-    q = q.order_by(VerificationRequest.created_at.desc())
+    q = q.order_by(VerificationRequest.created_at.desc(), VerificationRequest.id.desc())
     rows = db.scalars(q).all()
 
     result = []
     for vr in rows:
-        step_kinds = (
-            _STEP1_PROVIDER_KINDS if vr.subject_type == "provider" and vr.step == 1
-            else _STEP2_PROVIDER_KINDS if vr.subject_type == "provider" and vr.step == 2
-            else _NGO_KINDS
-        )
-        anchor = _last_review_time(db, vr.subject_user_id, vr.subject_type, vr.step)
-        docs = _docs_for_step(db, vr.subject_user_id, step_kinds, anchor)
+        kinds = _PROVIDER_KINDS if vr.subject_type == "provider" else _NGO_KINDS
+        docs = _docs_for_request(db, vr, kinds)
         subject = db.get(User, vr.subject_user_id)
         profile = db.get(NgoProfile if vr.subject_type == "ngo" else ProviderProfile, vr.subject_user_id)
         result.append({
@@ -342,6 +282,7 @@ def list_verifications(
             "created_at": vr.created_at.isoformat() if vr.created_at else None,
             "reviewed_at": vr.reviewed_at.isoformat() if vr.reviewed_at else None,
             "document_ids": [d.id for d in docs],
+            "documents": [{"id": d.id, "kind": d.kind, "label": _KIND_LABEL.get(d.kind, d.kind)} for d in docs],
         })
     return result
 
@@ -357,7 +298,7 @@ def decide(
     reason: str | None,
     admin_user_id: int,
 ) -> dict:
-    """Apply a verification decision. One transaction; updates profiles."""
+    """Apply a verification decision. One transaction; updates the profile."""
     vr = db.get(VerificationRequest, vr_id)
     if vr is None:
         raise AppError(404, "NOT_FOUND", "Verification request not found")
@@ -373,12 +314,9 @@ def decide(
     vr.reviewed_at = now
     db.flush()
 
-    # Delete sensitive identity documents to minimise data retention
-    if vr.subject_type == "provider" and vr.step == 1:
-        _delete_identity_docs(db, vr.subject_user_id)
-        _update_provider_status(db, vr.subject_user_id)
-    elif vr.subject_type == "provider" and vr.step == 2:
-        _update_provider_status(db, vr.subject_user_id)
+    if vr.subject_type == "provider":
+        _delete_identity_docs(db, vr.subject_user_id)  # data minimisation once decided
+        _update_provider_status(db, vr.subject_user_id, decision)
     elif vr.subject_type == "ngo":
         _update_ngo_status(db, vr.subject_user_id, decision)
 
@@ -392,13 +330,12 @@ def decide(
 
 
 def _delete_identity_docs(db: Session, owner_id: int) -> None:
-    """Soft-delete pan/aadhaar/passport documents (data minimisation after decision)."""
+    """Soft-delete passport (and any pan/aadhaar) documents after a decision."""
     from app.common.uploads import delete_document  # local import to avoid circular
-    sensitive_kinds = {"pan", "aadhaar", "passport"}
     docs = db.scalars(
         select(Document).where(
             Document.owner_id == owner_id,
-            Document.kind.in_(sensitive_kinds),
+            Document.kind.in_(_SENSITIVE_KINDS),
             Document.deleted_at.is_(None),
         )
     ).all()
@@ -407,33 +344,10 @@ def _delete_identity_docs(db: Session, owner_id: int) -> None:
     db.flush()
 
 
-def _update_provider_status(db: Session, provider_user_id: int) -> None:
-    """Recompute provider_profiles.verification_status from step outcomes."""
-    s1 = db.scalar(
-        select(VerificationRequest.status).where(
-            VerificationRequest.subject_user_id == provider_user_id,
-            VerificationRequest.subject_type == "provider",
-            VerificationRequest.step == 1,
-        ).order_by(VerificationRequest.created_at.desc())
-    )
-    s2 = db.scalar(
-        select(VerificationRequest.status).where(
-            VerificationRequest.subject_user_id == provider_user_id,
-            VerificationRequest.subject_type == "provider",
-            VerificationRequest.step == 2,
-        ).order_by(VerificationRequest.created_at.desc())
-    )
-
-    if s1 == "approved" and s2 == "approved":
-        new_status = "approved"
-    elif s1 == "rejected" or s2 == "rejected":
-        new_status = "rejected"
-    else:
-        new_status = "pending"
-
+def _update_provider_status(db: Session, provider_user_id: int, decision: str) -> None:
     profile = db.get(ProviderProfile, provider_user_id)
     if profile:
-        profile.verification_status = new_status
+        profile.verification_status = decision
         db.flush()
 
 

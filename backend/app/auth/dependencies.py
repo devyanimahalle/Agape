@@ -63,13 +63,12 @@ def get_profile(db: Session, user: User):
 
 
 def is_verified(db: Session, user: User) -> bool:
-    """General providers never need verification. Restaurants/caterers need
-    verification_status == approved. NGOs need status == approved."""
+    """Every provider (any category) needs verification_status == approved; NGOs need status == approved."""
     profile = get_profile(db, user)
     if profile is None:
         return False
     if user.role == "provider":
-        return profile.category == "general" or profile.verification_status == "approved"
+        return profile.verification_status == "approved"
     if user.role == "ngo":
         return profile.status == "approved"
     return False

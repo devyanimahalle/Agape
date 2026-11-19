@@ -1,21 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Badge, Button, Card, EmptyState, LoadingState, StatusPill } from '../../components/ui'
+import { Button, Card, EmptyState, LoadingState, StatusPill } from '../../components/ui'
 import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
-import { createListing, fetchMyListings } from './api'
+import { createListing, fetchAvailableListings, fetchMyListings } from './api'
 
+// Only approved donors reach this page: the route is wrapped in <VerificationGate role="provider"> (and the API refuses
+// everyone else). Every donor, whatever the category, needs approval.
 const SUBTITLE = 'List surplus food with a quantity and a collection window. Meal figures are estimates.'
 
 const inputCls = 'mt-1.5 w-full rounded-[6px] bg-canvas px-4 py-3 text-sm font-normal focus:bg-panel'
 const labelCls = 'block text-xs font-semibold uppercase tracking-[1px]'
-
-// Restaurants and caterers need an approved verification; general (home kitchen) donors never do.
-// Demo mode has no real profile, so the demo donor counts as verified.
-export function isVerifiedDonor({ mock, profile, verificationStatus }) {
-  if (mock) return true
-  return profile?.category === 'general' || verificationStatus === 'approved'
-}
 
 // <input type="datetime-local"> wants local "YYYY-MM-DDTHH:mm".
 const toLocalInput = (d) => {
@@ -61,7 +55,10 @@ function ListingRow({ listing }) {
   return (
     <Card as="article" className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-2xl md:text-3xl">{listing.title}</h3>
+        <div>
+          <h3 className="text-2xl md:text-3xl">{listing.title}</h3>
+          {listing.org_name && <p className="mt-1 text-xs text-muted">{listing.org_name}</p>}
+        </div>
         <StatusPill status={listing.status} />
       </div>
       <dl className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -214,11 +211,11 @@ function ListingForm({ profile, onCreated }) {
 }
 
 export default function ProviderListingsPage() {
-  const { mock, profile, verificationStatus } = useAuth()
-  const verified = isVerifiedDonor({ mock, profile, verificationStatus })
+  const { profile } = useAuth()
 
   const [listings, setListings] = useState([])
-  const [loading, setLoading] = useState(verified)
+  const [others, setOthers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -226,7 +223,9 @@ export default function ProviderListingsPage() {
     setLoading(true)
     setError('')
     try {
-      setListings(await fetchMyListings())
+      const [mine, available] = await Promise.all([fetchMyListings(), fetchAvailableListings()])
+      setListings(mine)
+      setOthers(available)
     } catch (err) {
       setError(err.detail ?? err.message ?? 'Could not load your listings')
     } finally {
@@ -234,9 +233,7 @@ export default function ProviderListingsPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (verified) load()
-  }, [verified, load])
+  useEffect(() => { load() }, [load])
 
   function handleCreated(created) {
     setListings((rows) => [created, ...rows])
@@ -247,47 +244,46 @@ export default function ProviderListingsPage() {
     <main>
       <PageHeader title="Surplus listings">{SUBTITLE}</PageHeader>
       <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-20">
-        {!verified ? (
-          <Card className="max-w-2xl p-7 md:p-9">
-            <Badge tone="warn">Verification needed</Badge>
-            <h2 className="mt-4 text-3xl md:text-4xl">Get verified before you list food</h2>
-            <p className="mt-3 leading-relaxed text-muted">
-              Restaurants and caterers are admin-verified before they can post surplus food.
-              {verificationStatus === 'pending' && ' Your documents are with an admin now.'}
-              {verificationStatus === 'rejected' && ' Your last submission was not approved. You can resubmit.'}
-            </p>
-            <Link to="/provider" className="press mt-6 inline-block rounded-[6px] bg-brand-bright px-6 py-3 text-sm font-bold uppercase tracking-[1px] text-ink hover:bg-brand">
-              Go to verification
-            </Link>
-          </Card>
-        ) : (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <section aria-label="New listing">
-              <Card className="p-7 md:p-9">
-                <h2 className="text-3xl md:text-4xl">New listing</h2>
-                <div className="mt-6">
-                  <ListingForm profile={profile} onCreated={handleCreated} />
-                </div>
-              </Card>
-            </section>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <section aria-label="New listing">
+            <Card className="p-7 md:p-9">
+              <h2 className="text-3xl md:text-4xl">New listing</h2>
+              <div className="mt-6">
+                <ListingForm profile={profile} onCreated={handleCreated} />
+              </div>
+            </Card>
+          </section>
 
-            <section aria-label="Your listings">
-              <h2 className="mb-4 text-3xl md:text-4xl">Your listings</h2>
-              {notice && <p role="status" className="mb-3 rounded-[6px] bg-ok-bg px-4 py-3 text-sm text-ok-ink">{notice}</p>}
-              {loading && <LoadingState label="Loading your listings…" />}
-              {!loading && error && (
-                <EmptyState title="Could not load your listings" action={<Button variant="dark" onClick={load}>Try again</Button>}>{error}</EmptyState>
-              )}
-              {!loading && !error && listings.length === 0 && (
-                <EmptyState title="No listings yet">Your first listing will appear here once you post it.</EmptyState>
-              )}
-              {!loading && !error && listings.length > 0 && (
-                <div className="grid gap-3">
-                  {listings.map((l) => <ListingRow key={l.id} listing={l} />)}
-                </div>
-              )}
-            </section>
-          </div>
+          <section aria-label="Your listings">
+            <h2 className="mb-4 text-3xl md:text-4xl">Your listings</h2>
+            {notice && <p role="status" className="mb-3 rounded-[6px] bg-ok-bg px-4 py-3 text-sm text-ok-ink">{notice}</p>}
+            {loading && <LoadingState label="Loading your listings…" />}
+            {!loading && error && (
+              <EmptyState title="Could not load your listings" action={<Button variant="dark" onClick={load}>Try again</Button>}>{error}</EmptyState>
+            )}
+            {!loading && !error && listings.length === 0 && (
+              <EmptyState title="No listings yet">Your first listing will appear here once you post it.</EmptyState>
+            )}
+            {!loading && !error && listings.length > 0 && (
+              <div className="grid gap-3">
+                {listings.map((l) => <ListingRow key={l.id} listing={l} />)}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {!loading && !error && (
+          <section aria-label="Open on the platform" className="mt-16">
+            <h2 className="text-3xl md:text-4xl">Open on the platform</h2>
+            <p className="mb-4 mt-2 max-w-2xl text-sm text-muted">Food other verified donors have listed right now. This is what NGOs see on their food board.</p>
+            {others.length === 0 ? (
+              <EmptyState title="Nothing else is listed">When another donor lists food, it shows up here.</EmptyState>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {others.map((l) => <ListingRow key={l.id} listing={l} />)}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </main>

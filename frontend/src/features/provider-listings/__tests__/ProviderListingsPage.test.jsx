@@ -10,6 +10,7 @@ import * as api from '../api'
 import { useAuth } from '../../../context/AuthContext'
 import ProviderListingsPage from '../ProviderListingsPage'
 
+// The route wraps this page in <VerificationGate>; the page itself assumes an approved donor.
 const renderPage = () => render(<MemoryRouter><ProviderListingsPage /></MemoryRouter>)
 const as = (over) => useAuth.mockReturnValue({
   mock: false,
@@ -25,49 +26,41 @@ const row = (over = {}) => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
+  as()
   api.fetchMyListings.mockResolvedValue([row()])
+  api.fetchAvailableListings.mockResolvedValue([])
 })
 
-describe('gating', () => {
-  it('shows a verification gate and never loads or posts for an unverified restaurant', () => {
-    as({ verificationStatus: 'pending' })
-    renderPage()
-    expect(screen.getByText('Get verified before you list food')).toBeInTheDocument()
-    expect(screen.getByText(/documents are with an admin/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Go to verification' })).toHaveAttribute('href', '/provider')
-    expect(screen.queryByLabelText(/What is it/)).not.toBeInTheDocument()
-    expect(api.fetchMyListings).not.toHaveBeenCalled()
-  })
-
-  it('lets general (home kitchen) donors in without verification', async () => {
-    as({ profile: { category: 'general' }, verificationStatus: 'pending' })
-    renderPage()
-    expect(await screen.findByLabelText(/What is it/)).toBeInTheDocument()
-  })
-
-  it('lets the demo donor in', async () => {
-    as({ mock: true, profile: null, verificationStatus: null })
-    renderPage()
-    expect(await screen.findByLabelText(/What is it/)).toBeInTheDocument()
-  })
-})
-
-describe('verified donor', () => {
-  it('lists existing listings with an estimate label', async () => {
-    as()
+describe('listings view', () => {
+  it('lists the donor\'s own listings with an estimate label', async () => {
     renderPage()
     expect(await screen.findByText('Dal and rice')).toBeInTheDocument()
     expect(screen.getByText(/about 40 \(estimate\)/)).toBeInTheDocument()
     expect(screen.getByText('Available')).toBeInTheDocument()
   })
 
+  it('also shows what other verified donors have listed, under the donor\'s own', async () => {
+    api.fetchAvailableListings.mockResolvedValue([row({ id: 9, title: 'Wedding buffet', org_name: 'Royal Caterers' })])
+    renderPage()
+    const others = await screen.findByLabelText('Open on the platform')
+    expect(within(others).getByText('Wedding buffet')).toBeInTheDocument()
+    expect(within(others).getByText('Royal Caterers')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Your listings')).queryByText('Wedding buffet')).not.toBeInTheDocument()
+  })
+
+  it('says so when nobody else has listed anything', async () => {
+    renderPage()
+    expect(await screen.findByText('Nothing else is listed')).toBeInTheDocument()
+  })
+
   it('prefills the pickup address and coordinates from the profile', async () => {
-    as()
     renderPage()
     expect(await screen.findByLabelText(/Pickup address/)).toHaveValue('Khan Market')
     expect(screen.getByLabelText(/Latitude/)).toHaveValue('28.6')
   })
+})
 
+describe('creating a listing', () => {
   it('blocks submission and explains what is missing', async () => {
     as({ profile: { category: 'restaurant' } })
     renderPage()
@@ -79,7 +72,6 @@ describe('verified donor', () => {
   })
 
   it('rejects out-of-range coordinates', async () => {
-    as()
     renderPage()
     await userEvent.type(await screen.findByLabelText(/What is it/), 'Rice')
     await userEvent.type(screen.getByLabelText(/Food type/), 'cooked meal')
@@ -93,7 +85,6 @@ describe('verified donor', () => {
   })
 
   it('creates a listing and shows it with an estimate notice', async () => {
-    as()
     api.createListing.mockResolvedValue(row({ id: 2, title: 'Fresh bread', est_meals: 30, quantity: 12, unit: 'kg' }))
     renderPage()
     await userEvent.type(await screen.findByLabelText(/What is it/), 'Fresh bread')
@@ -111,7 +102,6 @@ describe('verified donor', () => {
   })
 
   it('shows the server message when the create call fails', async () => {
-    as()
     api.createListing.mockRejectedValue(Object.assign(new Error('x'), { detail: 'Your account is not verified yet' }))
     renderPage()
     await userEvent.type(await screen.findByLabelText(/What is it/), 'Rice')
