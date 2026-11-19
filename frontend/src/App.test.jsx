@@ -30,6 +30,12 @@ describe('app shell', () => {
     expect(screen.getByLabelText('Demo role')).toBeInTheDocument()
   })
 
+  it('routes /account for a signed-in demo user and links to it from the layout', () => {
+    renderAt('/account')
+    expect(screen.getByRole('heading', { level: 1, name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account')
+  })
+
   it('shows /ngo for the default NGO demo user', () => {
     renderAt('/ngo')
     expect(screen.getByText('NGO board page')).toBeInTheDocument()

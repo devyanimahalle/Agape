@@ -13,6 +13,7 @@ export default function Layout() {
           <nav aria-label="Main" className="flex gap-1">
             <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
             <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
+            {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
           </nav>
           <div className="ml-auto flex items-center gap-3">
             {mock ? (
