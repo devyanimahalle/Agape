@@ -71,7 +71,7 @@ Verified against `origin/feature/Bhanupriya-B` at `e65ca6f` and `backend/app/res
 **4. Frontend contract: `/auth/me` and `/auth/login` shapes differ from what `AuthContext` assumes**
 - Role B's `/auth/me` returns **nested** JSON: `{ "user": { id, email, role, name, phone }, "profile": { ...all profile columns }, "verification_status": "pending|approved|..." }`.
   - `profile.lat` / `profile.lng` come through for NGOs because the profile is dumped column by column, so Role D's `me.profile.lat/lng` works as long as `NgoProfile` has those columns. Verify with a seeded NGO once the DB layer exists.
-- `AuthContext` and `LoginPage` currently read `role` and `name` from the top level of the `/auth/me` response. **Needs a change when merging:** use `me.user` as the session user (and keep `me.profile` / `me.verification_status` alongside), otherwise `user.role` is `undefined` and role-guarded routes block everyone.
+- **Done on Role A's side:** `AuthContext.parseMe()` already unwraps `{ user, profile, verification_status }` (falling back to a flat user), `LoginPage` calls `/auth/login` then `refresh()` (`/auth/me`), and `useAuth()` exposes `user`, `profile` and `verificationStatus`. Covered by `AuthContext.test.jsx` and `LoginPage.test.jsx` (including the exact Role B payloads and the `403 ACCOUNT_DISABLED` message). Nothing more to change in the frontend for auth.
 - Role D's mock `getMe()` returns the flat `profile` shape, so `features/ngo-reservations` works with both.
 - `/auth/login` returns `{ access_token, token_type, user: { id, email, role, name }, landing }`. `LoginPage` only uses `access_token`, which matches. `landing` is `/provider`, `/ngo` or `/admin`. The frontend routes by role itself (`homeForRole` in `lib/routes.js`): NGO to `/ngo`, donor/provider to `/provider`, admin to `/admin`, anything else to `/`. A safe same-site `?next=` (checked by `safeNext`) takes precedence. `/ngo` is the full NGO workflow; `/provider` and `/admin` are role-gated placeholder pages (`RoleHomePage`, marked "In development") that Role B / admin work should replace by swapping the element on those two routes in `App.jsx`.
 - Errors follow `{ detail, code }`; unauthenticated calls return `401 NOT_AUTHENTICATED` and bad login returns `401 INVALID_CREDENTIALS`. `LoginPage` already treats 401 as incorrect credentials.
@@ -87,3 +87,9 @@ Scope to be confirmed. Follow the same pattern: `features/<name>/`, `backend/app
 
 ## Copy rules
 Use the wording in `design-system.md`. Never write "FSSAI verified" or invent statistics.
+
+## Role A integration check (verified against `origin/feature/Bhanupriya-B` at `e65ca6f`)
+- **Present on `feature/RoleA`:** only `backend/app/reservations/` and `backend/tests/reservations/` (Role D). There is no `main.py`, `auth/`, `listings/`, `errors.py` or `db/` here.
+- **Arrives from Role B:** `main.py`, `auth/`, `listings/`, `errors.py`, `requirements.txt`, Dockerfile, CI. Role B's branch has **no** `backend/app/db/` either, so `models.py` and `session.py` (step 3 above) are still unowned. Do not invent them before the merge.
+- **Frontend wiring confirmed:** `API_BASE` defaults to `/api/v1` (matches Role B's `API_PREFIX`, and Vite proxies `/api` to `:8000`). `USE_MOCKS` is true only when `VITE_USE_MOCKS === 'true'`; with it off, `AuthContext` loads `/auth/me` when a token exists. Errors `{ detail, code }` map to `ApiError`; FastAPI 422 list details fall back to "Something went wrong".
+- **Role mapping:** backend roles `provider | ngo | admin` and `landing` values match `homeForRole`. Provider status comes from `profile.verification_status`, NGO status from `profile.status`; both arrive as the single `verification_status` field, where `approved` shows as "Admin-verified".

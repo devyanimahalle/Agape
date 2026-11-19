@@ -126,6 +126,25 @@ describe('LoginPage (live backend)', () => {
     expect(screen.queryByText('NGO landing')).not.toBeInTheDocument()
   })
 
+  it('shows the backend detail for a disabled account (403 ACCOUNT_DISABLED)', async () => {
+    h.api.mockRejectedValue(Object.assign(new Error('x'), { status: 403, code: 'ACCOUNT_DISABLED', detail: 'This account has been disabled' }))
+    renderLogin()
+    await fillAndSubmit()
+    expect(await screen.findByRole('alert')).toHaveTextContent('This account has been disabled')
+  })
+
+  it('works with the exact Role B contract: /auth/login then nested /auth/me', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login'
+        ? { access_token: 't', token_type: 'bearer', user: { id: 1, email: 'p@x.org', role: 'provider', name: 'P' }, landing: '/provider' }
+        : { user: { id: 1, email: 'p@x.org', role: 'provider', name: 'P', phone: '+91 90000 00000' }, profile: { category: 'general' }, verification_status: 'approved' },
+    )
+    renderLogin()
+    await fillAndSubmit()
+    expect(await screen.findByText('Provider landing')).toBeInTheDocument()
+    expect(h.setToken).toHaveBeenCalledWith('t')
+  })
+
   it('disables submit until both fields are filled and hides demo buttons', () => {
     renderLogin()
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled()
