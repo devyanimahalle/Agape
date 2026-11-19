@@ -11,19 +11,21 @@ frontend/src/
   context/AuthContext.jsx  session state, demo role switcher (mock mode)
   components/              shell: Layout, ProtectedRoute, ErrorBoundary
   components/ui/           kit: Button Card Badge StatusPill EmptyState LoadingState Modal
-  pages/                   top-level pages owned by Role A (HomePage)
+  pages/                   top-level pages owned by Role A (HomePage, LoginPage, AccountPage)
   features/<name>/         one folder per role's feature, exports pages from index.js
     ngo-reservations/      Role D (do not edit from the shell)
   styles/index.css         Tailwind @theme design tokens
   test/setup.js            Vitest setup (jest-dom, cleanup)
 backend/app/<feature>/     one package per feature (reservations = Role D)
-docs/                      design-system.md, architecture.md, integration-guide.md
+docs/                      design-system.md, architecture.md, integration-guide.md, demo-checklist.md
 ```
 
 ## Route map
 | Path | Page | Guard |
 |---|---|---|
 | `/` | `pages/HomePage` | public |
+| `/login` | `pages/LoginPage` | public |
+| `/account` | `pages/AccountPage` (session and verification status) | any signed-in role |
 | `/ngo` | `features/ngo-reservations` `NgoBoardPage` | role `ngo` |
 | `/ngo/reservations` | `NgoReservationsPage` | role `ngo` |
 | `*` | NotFound | public |
