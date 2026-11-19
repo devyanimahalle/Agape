@@ -35,23 +35,24 @@ Prerequisite: Role B's branch is merged and the backend runs on `localhost:8000`
 
 Setup
 - [ ] PostgreSQL running; `DATABASE_URL` set (see root `.env.example`); `CORS_ORIGINS=http://localhost:5173`
-- [ ] Backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload`
+- [ ] Backend: `cd backend && pip install -r requirements.txt && python -m app.db.seed && uvicorn app.main:app --reload`
 - [ ] `GET http://localhost:8000/health` returns `{"status": "ok"}`; `/docs` lists the auth routes and `/api/v1/board`
-- [ ] Frontend: set `VITE_USE_MOCKS=false` in `frontend/.env`, restart `npm run dev`
+- [ ] Frontend: `VITE_USE_MOCKS=false npm run dev` (or set it in `frontend/.env` and restart)
 - [ ] Backend tests: Role B's suite and Role D's `pytest tests/reservations` (needs PostgreSQL via `TEST_DATABASE_URL`)
 
-Seed data (an admin, one approved NGO with `lat`/`lng`, a provider, and an available listing near the NGO)
-- [ ] Register or seed the users through `POST /api/v1/auth/register`; approve the NGO (`status = approved`)
+Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/`lng`, an approved restaurant donor and three open listings near the NGO.
+- [ ] Demo logins: NGO `ngo@agape.demo` / `Ngo@12345`, Donor `provider@agape.demo` / `Provider@123`, Admin `admin@agape.demo` / `Admin@123`.
+- [ ] To test the unapproved path, register a second NGO through `POST /api/v1/auth/register` (it starts as `pending`).
 
 **Walkthrough**
 - [ ] No token: `/ngo` shows "Sign in required" with a **Sign in** link; header shows **Sign in**.
 - [ ] Wrong password at `/login` shows "Email or password is incorrect."
-- [ ] Sign in as the approved NGO: redirected to `/ngo`; `localStorage['access_token']` is set; **Account** shows name, email, role and "Admin-verified".
+- [ ] Sign in as the approved NGO (`ngo@agape.demo`): redirected to `/ngo`; `localStorage['access_token']` is set; **Account** shows name, email, role and "Admin-verified".
 - [ ] `/ngo` loads the real board nearest-first using the NGO's saved location (`/auth/me` `profile.lat/lng`).
 - [ ] Reserve a listing: succeeds once; reserving the same listing again (second browser or user) returns the "already taken" message.
 - [ ] Complete pickup with a real PDF/JPG/PNG, then rate the provider (restaurant/caterer providers only).
 - [ ] Unapproved NGO: `/ngo` shows the "awaiting approval" message (`403 NOT_VERIFIED`) and **Account** shows "Awaiting admin review".
-- [ ] Sign in as a Donor: `/ngo` shows "Not available for your role". Admin: `/account` shows "Not applicable for admin accounts."
+- [ ] Sign in as a Donor (`provider@agape.demo`): lands on `/provider`; `/ngo` shows "Not available for your role". Admin: `/account` shows "Not applicable for admin accounts."
 - [ ] **Sign out** clears the token and returns guarded routes to "Sign in required".
 - [ ] Stop the backend: pages show a network error message, not a blank screen (the error boundary catches crashes).
 

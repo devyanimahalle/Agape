@@ -105,3 +105,33 @@ Role B's branch was merged into `feature/RoleA` locally (clean, no conflicts). A
 - Columns were derived from every use in `app/auth`, `app/listings`, `app/reservations` and the tests: `Listing` has exactly the fields `listing_out()` and Role D's `ListingOut` expose (`reserved_by_ngo_id`, `reserved_at`, `completed_at`, `created_at` included); `Proof.review_status` defaults to `pending` (Role D's tests assert it); `Rating` has `UNIQUE(listing_id, kind)` (Role D relies on it as the last line of defence); `User.password_hash` defaults to an unusable `"!"` so Role D's test factories can create users without a password; `ProviderProfile.rating_avg` is nullable and `rating_count` defaults to 0. There are no ORM relationships because nothing navigates one.
 - Verified here: Role B's suite (`tests/auth`, `tests/listings`, 70 tests, which also imports `app.main` with Role D's router wired) passes on SQLite, and a smoke script exercised Role D's `get_board`, `reserve_listing` (including the double-reserve 409), `cancel_reservation`, `my_reservations` and the rating uniqueness on SQLite.
 - **Not verified:** Role D's own pytest suite (`tests/reservations`) needs PostgreSQL and has not been run; run it with `TEST_DATABASE_URL` set before relying on the concurrency guarantees. Column lengths, indexes and `ON DELETE` rules are reasonable defaults rather than a published contract, so confirm them with Role B / the contract owner before the first real migration.
+
+## Running the live stack locally (seed, API, frontend)
+- `main.py` calls `init_db()` in its lifespan (before Role B's expiry scheduler, which needs the tables); `AUTO_CREATE_TABLES=0` turns that off. Role B's tests build the app without running the lifespan, so they are unaffected.
+- `backend/app/db/seed.py` is idempotent and uses `hash_password` from `app.auth.security` and the real model fields. It matches accounts by email and listings by (provider, title).
+
+**Local live stack (SQLite, no PostgreSQL needed).** Three terminals:
+```bash
+# 1. backend (from backend/): create demo data, then start the API on :8000
+cd backend
+pip install -r requirements.txt
+python -m app.db.seed            # idempotent; creates tables and demo data in ./agape_dev.db
+uvicorn app.main:app --reload
+
+# 2. frontend (from frontend/): real API instead of mocks; Vite proxies /api to :8000
+cd frontend
+VITE_USE_MOCKS=false npm run dev      # PowerShell: $env:VITE_USE_MOCKS='false'; npm run dev
+```
+Demo logins (created by `python -m app.db.seed`; demo data only):
+
+| Role | Email | Password | Lands on |
+|---|---|---|---|
+| NGO (approved, saved location in Delhi) | `ngo@agape.demo` | `Ngo@12345` | `/ngo` |
+| Donor / provider (restaurant, approved) | `provider@agape.demo` | `Provider@123` | `/provider` |
+| Admin | `admin@agape.demo` | `Admin@123` | `/admin` |
+
+The seed also adds three open listings near the NGO (2 to 8 km away). Re-running it resets these passwords and moves
+the demo listings' windows forward, so run it again before a demo if the listings have expired. Set `DATABASE_URL`
+to use PostgreSQL instead; set `AUTO_CREATE_TABLES=0` to stop the API creating missing tables at startup.
+Quick API check: `POST /api/v1/auth/login`, then `GET /api/v1/auth/me` and `GET /api/v1/board` with
+`Authorization: Bearer <access_token>` (the board route is `/api/v1/board`).

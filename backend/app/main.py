@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import config as auth_config
 from app.auth.router import router as auth_router
+from app.db.models import init_db
 from app.errors import register_error_handlers
 from app.listings.jobs import start_scheduler
 from app.listings.router import router as listings_router
@@ -31,7 +32,9 @@ ROUTERS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     auth_config.assert_safe_config()
-    scheduler = start_scheduler()  # listing expiry job (Role B)
+    if os.getenv("AUTO_CREATE_TABLES", "1") != "0":
+        init_db()  # create missing tables (no migrations yet); AUTO_CREATE_TABLES=0 skips it
+    scheduler = start_scheduler()  # listing expiry job (Role B); needs the tables above
     yield
     if scheduler:
         scheduler.shutdown(wait=False)
