@@ -14,6 +14,14 @@ export default function Layout() {
           <nav aria-label="Main" className="-ml-3 flex min-w-0 gap-1 overflow-x-auto md:ml-0">
             <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
             <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
+            {user?.role === 'admin' && (
+              <>
+                <NavLink to="/admin" end className={navCls}>Admin</NavLink>
+                <NavLink to="/admin/proofs" className={navCls}>Proofs</NavLink>
+                <NavLink to="/admin/users" className={navCls}>Users</NavLink>
+              </>
+            )}
+            <NavLink to="/impact" className={navCls}>Impact</NavLink>
             {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
           </nav>
           <div className="ml-auto flex items-center gap-3">

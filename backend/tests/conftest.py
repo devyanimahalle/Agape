@@ -95,3 +95,42 @@ def ngo_payload():
 
 def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+# ---- Role E (admin/impact) fixtures: adapters over the shared app/engine above ----
+from app.auth.dependencies import get_current_user  # noqa: E402
+
+
+class _FakeUser:
+    """Stand-in for an authenticated User (only the fields the guards read)."""
+
+    def __init__(self, id, email, role, name):
+        self.id, self.email, self.role, self.name, self.is_active = id, email, role, name, True
+
+
+@pytest.fixture()
+def db_session(engine):
+    Session = sessionmaker(bind=engine, autoflush=False)  # expire on commit so reads see the API's writes
+    session = Session()
+    yield session
+    session.close()
+
+
+def _client_as(app, user):
+    app.dependency_overrides[get_current_user] = lambda: user
+    return TestClient(app)
+
+
+@pytest.fixture()
+def admin_client(app):
+    return _client_as(app, _FakeUser(1, "admin@test.com", "admin", "Admin"))
+
+
+@pytest.fixture()
+def provider_client(app):
+    return _client_as(app, _FakeUser(2, "provider@test.com", "provider", "Provider"))
+
+
+@pytest.fixture()
+def ngo_client(app):
+    return _client_as(app, _FakeUser(3, "ngo@test.com", "ngo", "NGO User"))

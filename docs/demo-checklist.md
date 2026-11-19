@@ -15,7 +15,7 @@ Setup: `cp .env.example .env` (defaults to mock mode), then `npm run dev` and op
 - [ ] `/` landing page loads: "Surplus food, collected in time", the three steps, the "what we check, and what we don't claim" section, and role cards (Donor and Admin marked "In development").
 - [ ] Header shows a **Demo mode** badge and a role dropdown (Donor / NGO / Admin).
 - [ ] `/login` shows the form plus **Continue as NGO / Donor / Admin** buttons. After sign-in each role lands on its own home: NGO `/ngo`, Donor `/provider`, Admin `/admin` (unless a safe same-site `?next=` path is present, which wins).
-- [ ] **Continue as Donor** opens `/provider` ("Donor home", In development) and **Continue as Admin** opens `/admin` ("Admin home", In development). Each has links to `/account` and `/`.
+- [ ] **Continue as Donor** opens `/provider` ("Donor home", In development) and **Continue as Admin** opens `/admin` (Role E's admin dashboard with stat cards). The Donor page has links to `/account` and `/`.
 - [ ] `/login?next=/ngo/reservations` shows "Sign in to continue." and returns there after sign-in; `?next=//evil.com` is ignored and the role home is used.
 - [ ] **Continue as NGO** goes to `/ngo`: list of nearby listings, estimated meals labelled as estimates, List/Map toggle (map tiles and markers show).
 - [ ] Reserve a listing: a confirmation appears first; the card then moves to **My reservations** (`/ngo/reservations`).
@@ -57,6 +57,14 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] Stop the backend: pages show a network error message, not a blank screen (the error boundary catches crashes).
 
 ## Known gaps to mention if asked
-- Donor and Admin screens (listing creation, NGO review) are not built in this frontend yet.
+- The Donor screens (listing creation) are not built in this frontend yet.
 - Role D's `ngo-reservations/api.js` still has its own request code instead of the shared `api()`.
-- `/provider` (Donor) and `/admin` (Admin) are placeholder landing pages marked "In development" (`RoleHomePage`); they are role-gated and `/auth/login`'s `landing` values map to them. Real donor listing and admin review screens replace them later.
+- `/provider` (Donor) is a placeholder landing page marked "In development" (`RoleHomePage`); it is role-gated and `/auth/login`'s `landing` value maps to it. `/admin` is Role E's real admin dashboard.
+
+## Admin and impact (Role E)
+- [ ] Demo mode, **Continue as Admin**: lands on `/admin` with user and listing stat cards. The header shows Admin, Proofs, Users and Impact links; NGO and Donor see only Impact (plus their own links).
+- [ ] `/admin/users`: list shows roles and verification status; activate or deactivate a user and the row updates.
+- [ ] `/admin/proofs`: filter by review status; approve or reject a proof with a 1-5 star rating. A second review of the same proof is refused (`ALREADY_REVIEWED`).
+- [ ] `/impact` loads without signing in and shows meals redistributed (an estimate), kg saved, and the monthly chart.
+- [ ] A NGO or Donor opening `/admin`, `/admin/proofs` or `/admin/users` sees "Not available for your role".
+- [ ] Live stack: `admin@agape.demo` sees real counts at `/admin`; the proof queue is empty until a proof exists. Backend: `pytest tests/admin tests/impact`.

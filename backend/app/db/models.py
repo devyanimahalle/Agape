@@ -7,7 +7,8 @@ Notes
 - `/auth/me` and `listing_out()` serialise `__table__.columns`, so adding or renaming a column changes the API.
 - Statuses and roles are plain strings (validated in the routers), kept portable across PostgreSQL and SQLite.
 - Timestamps are timezone-aware; SQLite hands them back naive, which the code treats as UTC.
-- No ORM relationships: nothing in the codebase navigates one; queries join on the foreign keys explicitly.
+- Relationships: only the read-only ones the Role E admin service navigates (User.provider_profile/ngo_profile,
+  Listing.provider, Proof.listing/ngo). Everything else joins on the foreign keys explicitly.
 """
 from datetime import datetime, timezone
 
@@ -22,7 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base, engine
 
@@ -47,6 +48,9 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(30))
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[datetime] = _created()
+
+    provider_profile = relationship("ProviderProfile", uselist=False, viewonly=True)  # Role E admin views
+    ngo_profile = relationship("NgoProfile", uselist=False, viewonly=True)  # Role E admin views
 
 
 class ProviderProfile(Base):
@@ -73,6 +77,7 @@ class NgoProfile(Base):
     lat: Mapped[float | None] = mapped_column(Float)
     lng: Mapped[float | None] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending | approved | rejected
+    rating_avg: Mapped[float | None] = mapped_column(Float)  # null until rated (set by admin proof review)
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
@@ -111,6 +116,8 @@ class Listing(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created()
 
+    provider = relationship("User", foreign_keys=[provider_id], viewonly=True)  # Role E admin views
+
     __table_args__ = (
         Index("ix_listings_status_window_end", "status", "window_end"),
         Index("ix_listings_provider_id", "provider_id"),
@@ -130,6 +137,9 @@ class Proof(Base):
     note: Mapped[str | None] = mapped_column(String(1000))
     review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     created_at: Mapped[datetime] = _created()
+
+    listing = relationship("Listing", viewonly=True)  # Role E admin views
+    ngo = relationship("User", foreign_keys=[ngo_id], viewonly=True)  # Role E admin views
 
 
 class Rating(Base):

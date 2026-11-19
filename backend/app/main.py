@@ -8,10 +8,12 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin.router import router as admin_router
 from app.auth import config as auth_config
 from app.auth.router import router as auth_router
 from app.db.models import init_db
 from app.errors import register_error_handlers
+from app.impact.router import router as impact_router
 from app.listings.jobs import start_scheduler
 from app.listings.router import router as listings_router
 from app.reservations import register_error_handlers as register_reservation_errors
@@ -25,7 +27,8 @@ ROUTERS = [
     listings_router,  # Role B
     # verification_router,   # Role C
     board_router,  # Role D (NGO board and reservations)
-    # admin_router, impact_router,  # Role E
+    admin_router,  # Role E (admin stats, users, proof review)
+    impact_router,  # Role E (public impact stats)
 ]
 
 
