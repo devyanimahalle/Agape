@@ -4,6 +4,8 @@ A food surplus redistribution platform that connects food donors (restaurants, c
 
 > **All impact figures (meals redistributed, kg saved) are estimates based on the constant 0.4 kg per meal.**
 
+📖 **Comprehensive Technical Dossier:** For complete architectural blueprints, workflows, database ER diagrams, state machines, and the live examiner demo script, see the **[Project Master Dossier](docs/PROJECT_OVERVIEW.md)**.
+
 ---
 
 ## Tech Stack
