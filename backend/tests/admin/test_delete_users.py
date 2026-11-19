@@ -39,7 +39,8 @@ class TestDeleteUser:
         assert db_session.get(Proof, 301) is None
         assert db_session.get(Rating, 400) is None
         assert db_session.get(Proof, 300) is not None  # someone else's proof is untouched
-        assert _count(db_session, VerificationRequest) == 0
+        left = db_session.scalars(select(VerificationRequest.subject_user_id)).all()
+        assert 20 not in left and left == [30]  # only the NGO's request remains
 
     def test_deleting_an_ngo_removes_their_proofs_and_documents_and_releases_listings(self, admin_client, db_session, seed_admin_data):
         r = admin_client.delete("/api/v1/admin/users/31")

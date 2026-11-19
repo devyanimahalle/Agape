@@ -13,6 +13,7 @@ try:
         ProviderProfile,
         Rating,
         User,
+        VerificationRequest,
     )
 except ImportError:
     from backend.app.db.models import (
@@ -104,6 +105,11 @@ def seed_admin_data(db_session: Session):
     # Ratings (existing)
     rating1 = Rating(id=400, listing_id=101, kind="admin_to_ngo", stars=4, comment="Good work", created_at=datetime(2024, 3, 4, tzinfo=timezone.utc))
     db_session.add(rating1)
+    # the two pending profiles have submitted their verification, so they are really awaiting review
+    db_session.add_all([
+        VerificationRequest(id=500, subject_user_id=20, subject_type="provider", step=1, status="pending", entity_name="Resto One"),
+        VerificationRequest(id=501, subject_user_id=30, subject_type="ngo", step=1, status="pending", entity_name="REG001"),
+    ])
     db_session.commit()
 
     return {

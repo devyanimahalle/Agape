@@ -105,3 +105,11 @@ Seed data: `python -m app.db.seed` creates ONLY the admin (`admin@agape.demo` / 
 - [ ] Admin, `/admin/proofs`: one card per uploaded file ("Proof of donation #N") with the listing, donor, NGO and the **distribution note**. **View proof of donation** opens the file in a viewer with **Open in new tab** and **Download**. Approve (with a star rating) or reject. Live stack: only admins can open the files (`GET /api/v1/admin/documents/{id}`).
 - [ ] Demo mode works the same way, in one browser session: confirm a pickup as an NGO, upload a file, switch the header role to Admin and open Proofs: the NGO's proof of donation is there and its file opens. (Demo data lives in memory, so use the in-app links rather than reloading the page between steps.)
 - [ ] Backend: `pytest tests/proofs`.
+
+## Admin overview pending counts
+- [ ] `/admin` (Dashboard) shows **Pending NGOs** and **Pending donors**. Demo mode starts at 1 and 1. In `/admin/verifications`, **Approve** (or Reject with a reason) each pending request, then open **Dashboard**: both read **0**. The accounts read as verified on `/admin/users`.
+- [ ] Demo mode: as **NGO**, submit **Onboarding**; as **Admin**, Dashboard shows Pending NGOs 1; approve it in Verifications and it returns to 0. Same for a donor's verification at `/provider`.
+- [ ] A newly registered NGO or donor that has NOT submitted anything is not counted; it appears as soon as it submits. An approved account is never counted.
+- [ ] Deleting a pending account on `/admin/users`, or **Reset demo accounts**, lowers the counts at once (reset: 0 and 0, Total users 1).
+- [ ] Live stack: leave the Dashboard open, submit a request from another browser, then click back into the tab: the number updates without a reload. Backend: `pytest tests/admin/test_pending_counts.py`.
+

@@ -44,16 +44,29 @@ except ImportError:
 def get_stats(db: Session) -> schemas.StatsResponse:
     total_users = db.query(func.count(User.id)).scalar() or 0
 
+    # "Pending" means awaiting an admin decision: the account has an open verification request and is not already
+    # approved. A freshly registered account that has not submitted anything yet is not waiting for anyone, and a
+    # decided or deleted request drops out at once, so the counts return to 0 when the queue is empty.
     ngos_pending = (
-        db.query(func.count(NgoProfile.user_id))
-        .filter(NgoProfile.status == "pending")
+        db.query(func.count(func.distinct(VerificationRequest.subject_user_id)))
+        .join(NgoProfile, NgoProfile.user_id == VerificationRequest.subject_user_id)
+        .filter(
+            VerificationRequest.subject_type == "ngo",
+            VerificationRequest.status == "pending",
+            NgoProfile.status != "approved",
+        )
         .scalar()
         or 0
     )
 
     providers_pending = (
-        db.query(func.count(ProviderProfile.user_id))
-        .filter(ProviderProfile.verification_status == "pending")
+        db.query(func.count(func.distinct(VerificationRequest.subject_user_id)))
+        .join(ProviderProfile, ProviderProfile.user_id == VerificationRequest.subject_user_id)
+        .filter(
+            VerificationRequest.subject_type == "provider",
+            VerificationRequest.status == "pending",
+            ProviderProfile.verification_status != "approved",
+        )
         .scalar()
         or 0
     )

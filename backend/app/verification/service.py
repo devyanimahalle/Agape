@@ -200,6 +200,8 @@ def submit_ngo(
     profile = db.get(NgoProfile, ngo_user_id)
     if profile:
         profile.reg_number = reg_number
+        if profile.status != "approved":
+            profile.status = "pending"  # a resubmission after a rejection waits for review again
         db.flush()
 
     vr = VerificationRequest(

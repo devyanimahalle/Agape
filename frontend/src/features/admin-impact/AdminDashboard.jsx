@@ -19,22 +19,37 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // The overview is read fresh every time the page opens, and again when the tab regains focus or becomes visible, so
+  // decisions made on the verification queue (or in another tab) show up without a manual reload.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetchStats()
-      .then((data) => {
-        if (!cancelled) setStats(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const load = (initial) => {
+      if (initial) {
+        setLoading(true);
+        setError(null);
+      }
+      fetchStats()
+        .then((data) => {
+          if (!cancelled) {
+            setStats(data);
+            setError(null);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled && initial) setError(err.message);
+        })
+        .finally(() => {
+          if (!cancelled && initial) setLoading(false);
+        });
+    };
+    load(true);
+    const refresh = () => { if (document.visibilityState !== 'hidden') load(false); };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
     return () => {
       cancelled = true;
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
 
