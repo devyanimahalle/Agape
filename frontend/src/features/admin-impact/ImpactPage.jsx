@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
+import { EmptyState, LoadingState } from '../../components/ui';
 import { fetchImpact } from './api';
+import Page from './components/Page';
 import StatCard from './components/StatCard';
 import MonthChart from './components/MonthChart';
+
+const TITLE = 'Impact';
+const NOTE = 'All figures are estimates, based on 0.4 kg per meal. They are not measured outcomes.';
 
 export default function ImpactPage() {
   const [impact, setImpact] = useState(null);
@@ -28,95 +33,32 @@ export default function ImpactPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Loading impact data...</p>
-        </div>
-      </div>
-    );
+    return <Page title={TITLE} subtitle={NOTE}><LoadingState label="Loading impact data…" /></Page>;
   }
-
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md text-center">
-          <p className="text-red-600 font-semibold mb-2">
-            Failed to load impact data
-          </p>
-          <p className="text-sm text-red-500">{error}</p>
-        </div>
-      </div>
+      <Page title={TITLE} subtitle={NOTE}>
+        <EmptyState title="Failed to load impact data">{error}</EmptyState>
+      </Page>
     );
   }
-
   if (!impact) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-400">No impact data available.</p>
-      </div>
-    );
+    return <Page title={TITLE} subtitle={NOTE}><EmptyState title="No impact data available" /></Page>;
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Hero Section */}
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-          🌍 SharePlate Impact
-        </h1>
-        <p className="text-lg text-gray-500 max-w-xl mx-auto">
-          Making a difference, one meal at a time
-        </p>
-        <div className="mt-4 inline-block bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-          <p className="text-sm text-amber-700 font-medium">
-            ⚠️ All figures are estimates based on 0.4 kg per meal
-          </p>
-        </div>
+    <Page title={TITLE} subtitle={NOTE}>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard title="Meals redistributed (est.)" value={impact.meals_redistributed} subtitle="Estimated total meals shared" highlight />
+        <StatCard title="Kilograms saved (est.)" value={`${impact.kg_saved.toLocaleString()} kg`} subtitle="Food diverted from waste" />
+        <StatCard title="Listings completed" value={impact.listings_completed} subtitle="Collected by an NGO" />
+        <StatCard title="Active NGOs" value={impact.active_ngos} subtitle="NGOs collecting food" />
+        <StatCard title="Active donors" value={impact.active_providers} subtitle="Restaurants and businesses donating" />
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-        <StatCard
-          title="Meals Redistributed"
-          value={impact.meals_redistributed}
-          icon="🍽️"
-          color="green"
-          subtitle="Estimated total meals shared"
-        />
-        <StatCard
-          title="Kilograms Saved"
-          value={`${impact.kg_saved.toLocaleString()} kg`}
-          icon="⚖️"
-          color="blue"
-          subtitle="Food diverted from waste"
-        />
-        <StatCard
-          title="Listings Completed"
-          value={impact.listings_completed}
-          icon="✅"
-          color="purple"
-          subtitle="Successfully fulfilled listings"
-        />
-        <StatCard
-          title="Active NGOs"
-          value={impact.active_ngos}
-          icon="🏢"
-          color="teal"
-          subtitle="NGOs collecting food"
-        />
-        <StatCard
-          title="Active Providers"
-          value={impact.active_providers}
-          icon="🏪"
-          color="orange"
-          subtitle="Restaurants & businesses donating"
-        />
+      <div className="mt-3">
+        <MonthChart data={impact.by_month} />
       </div>
-
-      {/* Monthly Chart */}
-      <MonthChart data={impact.by_month} />
-    </div>
+    </Page>
   );
 }

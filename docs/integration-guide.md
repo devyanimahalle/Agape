@@ -136,6 +136,10 @@ to use PostgreSQL instead; set `AUTO_CREATE_TABLES=0` to stop the API creating m
 Quick API check: `POST /api/v1/auth/login`, then `GET /api/v1/auth/me` and `GET /api/v1/board` with
 `Authorization: Bearer <access_token>` (the board route is `/api/v1/board`).
 
+## Rule: restyle every merged teammate feature
+
+Every teammate feature integrated into `feature/RoleA` must be restyled to Agape's design system (`docs/design-system.md`) as part of the merge, before it is committed. Concretely: start each page with the shared `PageHeader` band; build on `Card`, `Button`, `Badge`, `StatusPill`, `EmptyState`, `LoadingState` from `components/ui`; use only the palette tokens (`canvas`, `panel`, `ink`, `muted`, `brand*`), Anton for display numerals and DM Mono for text; no drop shadows, no coloured border stripes, no emoji icons, no generic blue/green/yellow progress bars; keep the honest-copy rules (say "estimate" next to meal figures). Keep every API call, data field and action unchanged. Role E's screens are the worked example (`features/admin-impact`).
+
 ## Role E: admin and impact (merged from `origin/feature/sonli-admin-impact`)
 
 - **Backend:** `app/admin` (router, service, schemas) and `app/impact` are mounted in `ROUTERS` in `backend/app/main.py`. Endpoints, all under `/api/v1`: `GET /admin/stats`, `GET /admin/users`, `PATCH /admin/users/{id}`, `GET /admin/proofs?review=`, `POST /admin/proofs/{id}/review` (admin only, via `app.auth.dependencies.require_role`), and the public `GET /impact`.

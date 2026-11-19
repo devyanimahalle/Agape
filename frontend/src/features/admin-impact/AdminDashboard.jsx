@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
+import { Card, EmptyState, LoadingState, StatusPill } from '../../components/ui';
 import { fetchStats } from './api';
+import Page from './components/Page';
 import StatCard from './components/StatCard';
 
-const STATUS_COLORS = {
-  listed: 'bg-blue-500',
-  reserved: 'bg-yellow-500',
-  completed: 'bg-green-500',
-  cancelled: 'bg-red-500',
-  expired: 'bg-gray-400',
-};
-
-const STATUS_LABELS = {
-  listed: 'Listed',
-  reserved: 'Reserved',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
+// Listing statuses in display order. Bars use ink/orange/tone steps; every segment is also labelled in the legend.
+const STATUS_ORDER = ['listed', 'reserved', 'completed', 'cancelled', 'expired'];
+const SEGMENT = {
+  listed: 'bg-brand-bright',
+  reserved: 'bg-brand-deep',
+  completed: 'bg-ink',
+  cancelled: 'bg-line',
+  expired: 'bg-sage',
 };
 
 export default function AdminDashboard() {
@@ -42,133 +38,69 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const subtitle = 'Overview of platform activity and pending actions.';
 
+  if (loading) {
+    return <Page title="Admin" subtitle={subtitle}><LoadingState label="Loading dashboard…" /></Page>;
+  }
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md text-center">
-          <p className="text-red-600 font-semibold mb-2">
-            Failed to load dashboard
-          </p>
-          <p className="text-sm text-red-500">{error}</p>
-        </div>
-      </div>
+      <Page title="Admin" subtitle={subtitle}>
+        <EmptyState title="Failed to load dashboard">{error}</EmptyState>
+      </Page>
     );
   }
-
   if (!stats) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-400">No data available.</p>
-      </div>
-    );
+    return <Page title="Admin" subtitle={subtitle}><EmptyState title="No data available" /></Page>;
   }
 
-  const totalListings = Object.values(stats.listings_by_status).reduce(
-    (sum, v) => sum + v,
-    0
-  );
+  const byStatus = stats.listings_by_status;
+  const totalListings = Object.values(byStatus).reduce((sum, v) => sum + v, 0);
+  const statuses = [...STATUS_ORDER.filter((s) => s in byStatus), ...Object.keys(byStatus).filter((s) => !STATUS_ORDER.includes(s))];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-        <p className="text-gray-500 mt-1">
-          Overview of platform activity and pending actions
-        </p>
+    <Page title="Admin" subtitle={subtitle}>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Total users" value={stats.total_users} subtitle="All registered users" />
+        <StatCard title="Pending NGOs" value={stats.ngos_pending} subtitle="Awaiting admin review" highlight />
+        <StatCard title="Pending donors" value={stats.providers_pending} subtitle="Awaiting admin review" highlight />
+        <StatCard title="Completed listings" value={byStatus.completed || 0} subtitle="Collected by an NGO" />
       </div>
 
-      {/* Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        <StatCard
-          title="Total Users"
-          value={stats.total_users}
-          icon="👥"
-          color="blue"
-          subtitle="All registered users"
-        />
-        <StatCard
-          title="Pending NGOs"
-          value={stats.ngos_pending}
-          icon="🏢"
-          color="yellow"
-          subtitle="Awaiting verification"
-        />
-        <StatCard
-          title="Pending Providers"
-          value={stats.providers_pending}
-          icon="🏪"
-          color="yellow"
-          subtitle="Awaiting verification"
-        />
-        <StatCard
-          title="Completed Listings"
-          value={stats.listings_by_status.completed || 0}
-          icon="✅"
-          color="green"
-          subtitle="Successfully redistributed"
-        />
-      </div>
-
-      {/* Listings by Status */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Listings by Status
-          </h2>
-          <span className="text-sm text-gray-400">
-            Total: {totalListings}
-          </span>
+      <Card as="section" aria-label="Listings by status" className="mt-3 p-7 md:p-9">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-3xl md:text-4xl">Listings by status</h2>
+          <span className="text-xs uppercase tracking-[1px] text-muted">Total {totalListings}</span>
         </div>
 
-        {/* Stacked horizontal bar */}
-        <div className="w-full h-8 rounded-full overflow-hidden flex bg-gray-100 mb-4">
-          {Object.entries(stats.listings_by_status).map(([status, count]) => {
+        <div className="mt-6 flex h-6 w-full overflow-hidden rounded-[3px] bg-canvas">
+          {statuses.map((status) => {
+            const count = byStatus[status];
             const pct = totalListings > 0 ? (count / totalListings) * 100 : 0;
             if (pct === 0) return null;
             return (
               <div
                 key={status}
-                className={`${STATUS_COLORS[status] || 'bg-gray-300'} h-full transition-all duration-500 flex items-center justify-center`}
+                className={`${SEGMENT[status] || 'bg-line'} h-full`}
                 style={{ width: `${pct}%` }}
-                title={`${STATUS_LABELS[status] || status}: ${count}`}
-              >
-                {pct > 10 && (
-                  <span className="text-xs text-white font-semibold">
-                    {count}
-                  </span>
-                )}
-              </div>
+                title={`${status}: ${count}`}
+              />
             );
           })}
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4">
-          {Object.entries(stats.listings_by_status).map(([status, count]) => (
-            <div key={status} className="flex items-center gap-2">
-              <div
-                className={`w-3 h-3 rounded-full ${STATUS_COLORS[status] || 'bg-gray-300'}`}
-              />
-              <span className="text-sm text-gray-600">
-                {STATUS_LABELS[status] || status}:{' '}
-                <span className="font-semibold">{count}</span>
+        <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {statuses.map((status) => (
+            <li key={status} className="flex items-center justify-between gap-3 rounded-[6px] bg-canvas px-4 py-3">
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true" className={`h-3 w-3 rounded-[3px] ${SEGMENT[status] || 'bg-line'}`} />
+                <StatusPill status={status} />
               </span>
-            </div>
+              <span className="font-display text-2xl">{byStatus[status]}</span>
+            </li>
           ))}
-        </div>
-      </div>
-    </div>
+        </ul>
+      </Card>
+    </Page>
   );
 }

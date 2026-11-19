@@ -19,7 +19,7 @@ const TRUST = [
 const ROLES = [
   { key: 'ngo', name: 'NGO', blurb: 'Browse nearby surplus food on a list or map, reserve it, then confirm pickup.', to: '/ngo', cta: 'Open food board' },
   { key: 'provider', name: 'Donor', blurb: 'List surplus food and see when an NGO has reserved it.', status: 'In development' },
-  { key: 'admin', name: 'Admin', blurb: 'Review NGO registrations and FSSAI details before NGOs can reserve food.', status: 'In development' },
+  { key: 'admin', name: 'Admin', blurb: 'Review NGO registrations and FSSAI details before NGOs can reserve food.', to: '/admin', cta: 'Open admin' },
 ]
 
 export default function HomePage() {
@@ -83,9 +83,9 @@ export default function HomePage() {
         <h2 id="roles" className="reveal text-[clamp(2.75rem,6vw,4.75rem)] leading-[0.92]">Who it is for</h2>
         <div className="mt-10 grid gap-3 md:mt-14 md:grid-cols-[1.35fr_1fr_1fr]">
           {ROLES.map((r) => (
-            <Card key={r.key} as="article" className={`reveal flex flex-col p-7 md:p-9 ${r.to ? '!bg-brand-bright' : ''}`}>
+            <Card key={r.key} as="article" className={`reveal flex flex-col p-7 md:p-9 ${r.key === 'ngo' ? '!bg-brand-bright' : ''}`}>
               <h3 className="text-4xl md:text-5xl">{r.name}</h3>
-              <p className={`mt-4 leading-relaxed ${r.to ? 'text-ink' : 'text-muted'}`}>{r.blurb}</p>
+              <p className={`mt-4 leading-relaxed ${r.key === 'ngo' ? 'text-ink' : 'text-muted'}`}>{r.blurb}</p>
               <div className="mt-auto pt-8">
                 {r.to ? (
                   <Link to={r.to} className={`${btn} inline-block bg-ink text-canvas hover:bg-toast`}>{r.cta}</Link>

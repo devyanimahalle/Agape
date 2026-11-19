@@ -34,11 +34,12 @@ describe('HomePage', () => {
     expect(document.body.textContent).not.toMatch(/FSSAI[- ]verified|FSSAI[- ]certified/i)
   })
 
-  it('previews all three roles, marking unfinished ones as in development', () => {
+  it('previews all three roles, marking only the Donor as in development', () => {
     setup()
     for (const name of ['NGO', 'Donor', 'Admin']) {
       expect(screen.getByRole('heading', { name })).toBeInTheDocument()
     }
-    expect(screen.getAllByText('In development')).toHaveLength(2)
+    expect(screen.getAllByText('In development')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'Open admin' })).toHaveAttribute('href', '/admin')
   })
 })
