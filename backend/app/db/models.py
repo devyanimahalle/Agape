@@ -1,0 +1,164 @@
+"""ORM tables. Every column here is read or written somewhere in `app/auth`, `app/listings`, `app/reservations`
+or their tests. There are no migrations yet: call `init_db()` (or `Base.metadata.create_all(engine)`) once.
+
+Notes
+- `ProviderProfile.user_id` and `NgoProfile.user_id` are the primary keys (one profile per user), so
+  `db.get(NgoProfile, user.id)` works (Role D's `require_verified_ngo` and `ngo_location`).
+- `/auth/me` and `listing_out()` serialise `__table__.columns`, so adding or renaming a column changes the API.
+- Statuses and roles are plain strings (validated in the routers), kept portable across PostgreSQL and SQLite.
+- Timestamps are timezone-aware; SQLite hands them back naive, which the code treats as UTC.
+- No ORM relationships: nothing in the codebase navigates one; queries join on the foreign keys explicitly.
+"""
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.session import Base, engine
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _created() -> Mapped[datetime]:
+    return mapped_column(DateTime(timezone=True), default=_now, server_default=func.now(), nullable=False)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    # "!" is never a valid bcrypt hash, so accounts created without a password (test factories) cannot log in.
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="!")
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # provider | ngo | admin
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(30))
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = _created()
+
+
+class ProviderProfile(Base):
+    __tablename__ = "provider_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # restaurant | caterer | general
+    org_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[str | None] = mapped_column(String(500))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    rating_avg: Mapped[float | None] = mapped_column(Float)  # null until rated; general providers are never rated
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class NgoProfile(Base):
+    __tablename__ = "ngo_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    org_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    reg_number: Mapped[str | None] = mapped_column(String(100))
+    address: Mapped[str | None] = mapped_column(String(500))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending | approved | rejected
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class Document(Base):
+    """A privately stored uploaded file (proof of pickup today; verification documents later)."""
+
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)  # proof_photo | proof_letter | ...
+    private_path: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created()
+
+
+class Listing(Base):
+    __tablename__ = "listings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    food_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False)  # kg | portions
+    est_meals: Mapped[int] = mapped_column(Integer, nullable=False)  # an estimate, not a measurement
+    est_kg: Mapped[float] = mapped_column(Float, nullable=False)  # an estimate, not a measurement
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    address: Mapped[str] = mapped_column(String(500), nullable=False)
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    notes: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="listed")
+    reserved_by_ngo_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    reserved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created()
+
+    __table_args__ = (
+        Index("ix_listings_status_window_end", "status", "window_end"),
+        Index("ix_listings_provider_id", "provider_id"),
+        Index("ix_listings_reserved_by_ngo_id", "reserved_by_ngo_id"),
+    )
+
+
+class Proof(Base):
+    """One row per uploaded proof file attached to a completed pickup."""
+
+    __tablename__ = "proofs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True, nullable=False)
+    ngo_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(1000))
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    created_at: Mapped[datetime] = _created()
+
+
+class Rating(Base):
+    __tablename__ = "ratings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)  # ngo_to_provider
+    stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = _created()
+
+    # One rating of each kind per listing: the last line of defence against double rating.
+    __table_args__ = (UniqueConstraint("listing_id", "kind", name="uq_ratings_listing_kind"),)
+
+
+def init_db(bind=None) -> None:
+    """Create all tables (no migrations yet). Safe to call repeatedly."""
+    Base.metadata.create_all(bind or engine)
+
+
+__all__ = [
+    "Base",
+    "User",
+    "ProviderProfile",
+    "NgoProfile",
+    "Document",
+    "Listing",
+    "Proof",
+    "Rating",
+    "init_db",
+]

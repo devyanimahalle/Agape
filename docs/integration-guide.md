@@ -29,7 +29,7 @@ It prefixes `VITE_API_BASE`, adds `Authorization: Bearer <token>` from `localSto
 **Demo mode:** with `VITE_USE_MOCKS=true` the header shows a role switcher so every guarded route can be demoed without a backend.
 
 ## Role B (auth, listings, backend entrypoint)
-Role B's branch `origin/feature/Bhanupriya-B` (not merged here yet) already provides `backend/app/main.py`, `backend/requirements.txt`, `backend/app/auth/` (`/auth/register`, `/auth/login`, `/auth/me`), `backend/app/listings/`, `backend/app/errors.py`, a Dockerfile and a CI workflow. **Do not create `backend/app/main.py` or `backend/requirements.txt` on `feature/RoleA`**; that would cause add/add conflicts. Use the checklist below when the branches are merged.
+Role B's branch `origin/feature/Bhanupriya-B` (now merged into `feature/RoleA` locally, see the status sections at the end) already provides `backend/app/main.py`, `backend/requirements.txt`, `backend/app/auth/` (`/auth/register`, `/auth/login`, `/auth/me`), `backend/app/listings/`, `backend/app/errors.py`, a Dockerfile and a CI workflow. **Do not create `backend/app/main.py` or `backend/requirements.txt` on `feature/RoleA`**; that would cause add/add conflicts. Use the checklist below when the branches are merged.
 - Frontend: Role A owns `/login` (done). A register page can go in `features/auth/` once Role B confirms the form fields (`POST /auth/register` needs role-specific fields such as `org_name`, `address`, `lat`, `lng`, `reg_number`).
 
 ## Merge checklist: Role B + Role D (backend)
@@ -63,8 +63,8 @@ Verified against `origin/feature/Bhanupriya-B` at `e65ca6f` and `backend/app/res
   The Vite dev proxy hides the need for CORS locally, but a deployed frontend on another origin needs it.
 - Append to `backend/requirements.txt`: `httpx>=0.27` (Role D's geocoder), `psycopg[binary]>=3` (Role D's `postgresql+psycopg://` URLs; Role B lists `psycopg2-binary`, so pick one driver per `DATABASE_URL`). Role B's `requirements-roleB.txt` already has `httpx` for tests. Role D also needs `python-multipart` (already listed).
 
-**3. Database layer (missing on both branches)**
-- Neither branch contains `backend/app/db/models.py` or `session.py`, yet both import them. Someone must add them.
+**3. Database layer (implemented on `feature/RoleA` in `backend/app/db/`; neither source branch had it)**
+- Neither source branch contained `backend/app/db/models.py` or `session.py`, yet both import them. They now exist on `feature/RoleA` (see "Database layer" at the end of this file); the notes below describe what they satisfy.
 - `Base` must be exported from **both** places: Role B's tests use `from app.db.session import Base, get_db`, and Role D's tests use `from app.db.models import Base, ...`. Define `Base` in `session.py` and re-export it in `models.py`.
 - `session.py` must export `get_db` and `SessionLocal`. `models.py` must define `User, ProviderProfile, NgoProfile, Document, Listing, Proof, Rating`. Column names Role D reads are in `backend/app/reservations/README.md` and `tests/reservations/conftest.py`. `NgoProfile` needs `lat` and `lng`.
 
@@ -89,8 +89,7 @@ Scope to be confirmed. Follow the same pattern: `features/<name>/`, `backend/app
 Use the wording in `design-system.md`. Never write "FSSAI verified" or invent statistics.
 
 ## Role A integration check (verified against `origin/feature/Bhanupriya-B` at `e65ca6f`)
-- **Present on `feature/RoleA`:** only `backend/app/reservations/` and `backend/tests/reservations/` (Role D). There is no `main.py`, `auth/`, `listings/`, `errors.py` or `db/` here.
-- **Arrives from Role B:** `main.py`, `auth/`, `listings/`, `errors.py`, `requirements.txt`, Dockerfile, CI. Role B's branch has **no** `backend/app/db/` either, so `models.py` and `session.py` (step 3 above) are still unowned. Do not invent them before the merge.
+- **Status:** Role B's branch (`e65ca6f`) is merged here; `backend/app/db/` was added on top because neither branch had it.
 - **Frontend wiring confirmed:** `API_BASE` defaults to `/api/v1` (matches Role B's `API_PREFIX`, and Vite proxies `/api` to `:8000`). `USE_MOCKS` is true only when `VITE_USE_MOCKS === 'true'`; with it off, `AuthContext` loads `/auth/me` when a token exists. Errors `{ detail, code }` map to `ApiError`; FastAPI 422 list details fall back to "Something went wrong".
 - **Role mapping:** backend roles `provider | ngo | admin` and `landing` values match `homeForRole`. Provider status comes from `profile.verification_status`, NGO status from `profile.status`; both arrive as the single `verification_status` field, where `approved` shows as "Admin-verified".
 
@@ -99,10 +98,10 @@ Role B's branch was merged into `feature/RoleA` locally (clean, no conflicts). A
 - `backend/app/main.py`: `board_router` (Role D) added to `ROUTERS`; Role D's error handler registered via the `register_reservation_errors` alias (it only handles `ApiError`, so Role B's handlers are unaffected); CORS middleware reading `CORS_ORIGINS` (comma-separated, default `http://localhost:5173`). Role B's expiry scheduler is kept; Role D's `expiry_lifespan` is not used (the two would overlap).
 - `backend/requirements.txt`: added `httpx>=0.27` and `psycopg[binary]>=3`. Role B's list still has `psycopg2-binary`; use `postgresql+psycopg://` URLs (Role D) or drop one driver. `PyJWT`, `bcrypt` and `APScheduler` are already in Role B's `requirements.txt`.
 
-**Still blocking, not done on purpose:** `backend/app/db/models.py` and `backend/app/db/session.py` exist on neither branch, so `app.main` cannot import yet (Role B's auth and Role D's reservations both need them). The columns are not written down anywhere in the repo (the "contract TABLES" is external), so they were not guessed. Requirements for whoever writes them:
-- `session.py`: export `Base`, `get_db`, `SessionLocal`, reading `DATABASE_URL`. `models.py` re-exports `Base` and defines `User, ProviderProfile, NgoProfile, Document, Listing, Proof, Rating`.
-- `NgoProfile.user_id` must be the **primary key**: Role D's `require_verified_ngo` calls `db.get(NgoProfile, user.id)`. `ProviderProfile` likewise if it is fetched by `get`.
-- Columns seen in code: `User` (id, email, password_hash, role, name, phone, is_active); `ProviderProfile` (user_id, category, org_name, address, lat, lng, verification_status, rating_count, plus a rating average); `NgoProfile` (user_id, org_name, reg_number, address, lat, lng, status, rating_count); `Listing` (id, provider_id, status, window_end, created_at, reserved_by_ngo_id, reserved_at, and the listing fields in `app/listings/schemas.py`); `Rating` (id, listing_id, kind, stars, comment); `Document` (owner_id, kind, private_path); `Proof` (listing_id, ngo_id, document_id, note). Check each against `app/listings/service.py` and `app/reservations/service.py` before writing.
-- Role D's tests need PostgreSQL (`TEST_DATABASE_URL`); Role B's fall back to SQLite.
-
-Not yet verified: no backend dependencies are installed in this environment, so neither pytest suite and `uvicorn app.main:app` have been run.
+## Database layer (`backend/app/db/`, implemented)
+- `session.py` exports `Base`, `engine`, `SessionLocal` and `get_db`. It reads `DATABASE_URL`; when unset it falls back to a local SQLite file (`sqlite:///./agape_dev.db`, git-ignored via `*.db`). `postgres://` is rewritten to `postgresql://`. Use `postgresql+psycopg://` (psycopg v3, what Role D's tests and `.env.example` use) or `postgresql+psycopg2://` (Role B's CI) depending on the installed driver.
+- `models.py` re-exports `Base` and defines `User, ProviderProfile, NgoProfile, Document, Listing, Proof, Rating` plus `init_db()` (calls `create_all`; there are no Alembic migrations yet, so run it once on a fresh database).
+- `ProviderProfile.user_id` and `NgoProfile.user_id` are **primary keys**, so `db.get(NgoProfile, user.id)` in Role D's `require_verified_ngo` and `ngo_location` works.
+- Columns were derived from every use in `app/auth`, `app/listings`, `app/reservations` and the tests: `Listing` has exactly the fields `listing_out()` and Role D's `ListingOut` expose (`reserved_by_ngo_id`, `reserved_at`, `completed_at`, `created_at` included); `Proof.review_status` defaults to `pending` (Role D's tests assert it); `Rating` has `UNIQUE(listing_id, kind)` (Role D relies on it as the last line of defence); `User.password_hash` defaults to an unusable `"!"` so Role D's test factories can create users without a password; `ProviderProfile.rating_avg` is nullable and `rating_count` defaults to 0. There are no ORM relationships because nothing navigates one.
+- Verified here: Role B's suite (`tests/auth`, `tests/listings`, 70 tests, which also imports `app.main` with Role D's router wired) passes on SQLite, and a smoke script exercised Role D's `get_board`, `reserve_listing` (including the double-reserve 409), `cancel_reservation`, `my_reservations` and the rating uniqueness on SQLite.
+- **Not verified:** Role D's own pytest suite (`tests/reservations`) needs PostgreSQL and has not been run; run it with `TEST_DATABASE_URL` set before relying on the concurrency guarantees. Column lengths, indexes and `ON DELETE` rules are reasonable defaults rather than a published contract, so confirm them with Role B / the contract owner before the first real migration.
