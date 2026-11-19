@@ -91,6 +91,31 @@ class Document(Base):
     kind: Mapped[str] = mapped_column(String(30), nullable=False)  # proof_photo | proof_letter | ...
     private_path: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created()
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # soft delete (Role C uploads)
+
+
+class VerificationRequest(Base):
+    """Role C: one row per verification step awaiting (or past) admin review.
+
+    Provider verification has two steps (1 = identity and business proof, 2 = FSSAI certificate); NGOs have one
+    (registration). Only masked identifiers are stored, never the raw PAN or Aadhaar.
+    """
+
+    __tablename__ = "verification_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subject_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    subject_type: Mapped[str] = mapped_column(String(20), nullable=False)  # provider | ngo
+    step: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 | 2
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending | approved | rejected
+    reason: Mapped[str | None] = mapped_column(Text)
+    masked_pan: Mapped[str | None] = mapped_column(String(20))
+    masked_aadhaar: Mapped[str | None] = mapped_column(String(20))
+    fssai_number: Mapped[str | None] = mapped_column(String(20))
+    entity_name: Mapped[str | None] = mapped_column(String(255))
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created()
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Listing(Base):
@@ -166,6 +191,7 @@ __all__ = [
     "User",
     "ProviderProfile",
     "NgoProfile",
+    "VerificationRequest",
     "Document",
     "Listing",
     "Proof",

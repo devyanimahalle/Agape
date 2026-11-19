@@ -2,13 +2,13 @@
 import { Routes, Route, Link } from 'react-router-dom'
 import { NgoBoardPage, NgoReservationsPage } from './features/ngo-reservations'
 import { AdminDashboard, AdminProofs, AdminUsers, ImpactPage } from './features/admin-impact'
+import { ProviderVerificationPage, NgoOnboardingPage, AdminVerificationsPage } from './features/verification'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import AccountPage from './pages/AccountPage'
-import RoleHomePage from './pages/RoleHomePage'
 
 function NotFound() {
   return (
@@ -30,13 +30,15 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
-          <Route path="/provider" element={<ProtectedRoute roles={['provider']}><RoleHomePage role="provider" /></ProtectedRoute>} />
+          <Route path="/provider" element={<ProtectedRoute roles={['provider']}><ProviderVerificationPage /></ProtectedRoute>} />
           <Route path="/admin" element={adminOnly(<AdminDashboard />)} />
           <Route path="/admin/proofs" element={adminOnly(<AdminProofs />)} />
           <Route path="/admin/users" element={adminOnly(<AdminUsers />)} />
+          <Route path="/admin/verifications" element={adminOnly(<AdminVerificationsPage />)} />
           <Route path="/impact" element={<ImpactPage />} />
           <Route path="/ngo" element={ngoOnly(<NgoBoardPage />)} />
           <Route path="/ngo/reservations" element={ngoOnly(<NgoReservationsPage />)} />
+          <Route path="/ngo/onboarding" element={ngoOnly(<NgoOnboardingPage />)} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

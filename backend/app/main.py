@@ -18,6 +18,8 @@ from app.listings.jobs import start_scheduler
 from app.listings.router import router as listings_router
 from app.reservations import register_error_handlers as register_reservation_errors
 from app.reservations import router as board_router
+from app.verification.router import admin_router as verification_admin_router
+from app.verification.router import router as verification_router
 
 API_PREFIX = "/api/v1"
 
@@ -25,7 +27,8 @@ API_PREFIX = "/api/v1"
 ROUTERS = [
     auth_router,  # Role B
     listings_router,  # Role B
-    # verification_router,   # Role C
+    verification_router,  # Role C (provider and NGO verification, /verification)
+    verification_admin_router,  # Role C (admin verification queue, /admin/verifications, /admin/documents)
     board_router,  # Role D (NGO board and reservations)
     admin_router,  # Role E (admin stats, users, proof review)
     impact_router,  # Role E (public impact stats)

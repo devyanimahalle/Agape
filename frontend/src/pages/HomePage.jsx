@@ -18,7 +18,7 @@ const TRUST = [
 
 const ROLES = [
   { key: 'ngo', name: 'NGO', blurb: 'Browse nearby surplus food on a list or map, reserve it, then confirm pickup.', to: '/ngo', cta: 'Open food board' },
-  { key: 'provider', name: 'Donor', blurb: 'List surplus food and see when an NGO has reserved it.', status: 'In development' },
+  { key: 'provider', name: 'Donor', blurb: 'Get verified as a restaurant, caterer or home kitchen so your surplus food can be listed.', to: '/provider', cta: 'Open donor area' },
   { key: 'admin', name: 'Admin', blurb: 'Review NGO registrations and FSSAI details before NGOs can reserve food.', to: '/admin', cta: 'Open admin' },
 ]
 

@@ -19,8 +19,11 @@ export default function Layout() {
                 <NavLink to="/admin" end className={navCls}>Admin</NavLink>
                 <NavLink to="/admin/proofs" className={navCls}>Proofs</NavLink>
                 <NavLink to="/admin/users" className={navCls}>Users</NavLink>
+                <NavLink to="/admin/verifications" className={navCls}>Verifications</NavLink>
               </>
             )}
+            {user?.role === 'provider' && <NavLink to="/provider" className={navCls}>Verification</NavLink>}
+            {user?.role === 'ngo' && <NavLink to="/ngo/onboarding" className={navCls}>Onboarding</NavLink>}
             <NavLink to="/impact" className={navCls}>Impact</NavLink>
             {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
           </nav>

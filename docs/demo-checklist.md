@@ -12,10 +12,10 @@ Run from `frontend/` unless stated. Tick each item before the Expo (20 Nov 2026,
 Setup: `cp .env.example .env` (defaults to mock mode), then `npm run dev` and open http://localhost:5173.
 
 **Walkthrough**
-- [ ] `/` landing page loads: "Surplus food, collected in time", the three steps, the "what we check, and what we don't claim" section, and role cards (Donor and Admin marked "In development").
+- [ ] `/` landing page loads: "Surplus food, collected in time", the three steps, the "what we check, and what we don't claim" section, and role cards (all three link to their area; nothing is marked "In development").
 - [ ] Header shows a **Demo mode** badge and a role dropdown (Donor / NGO / Admin).
 - [ ] `/login` shows the form plus **Continue as NGO / Donor / Admin** buttons. After sign-in each role lands on its own home: NGO `/ngo`, Donor `/provider`, Admin `/admin` (unless a safe same-site `?next=` path is present, which wins).
-- [ ] **Continue as Donor** opens `/provider` ("Donor home", In development) and **Continue as Admin** opens `/admin` (Role E's admin dashboard with stat cards). The Donor page has links to `/account` and `/`.
+- [ ] **Continue as Donor** opens `/provider` (Role C's verification stepper) and **Continue as Admin** opens `/admin` (Role E's admin dashboard with stat cards).
 - [ ] `/login?next=/ngo/reservations` shows "Sign in to continue." and returns there after sign-in; `?next=//evil.com` is ignored and the role home is used.
 - [ ] **Continue as NGO** goes to `/ngo`: list of nearby listings, estimated meals labelled as estimates, List/Map toggle (map tiles and markers show).
 - [ ] Reserve a listing: a confirmation appears first; the card then moves to **My reservations** (`/ngo/reservations`).
@@ -59,7 +59,7 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 ## Known gaps to mention if asked
 - The Donor screens (listing creation) are not built in this frontend yet.
 - Role D's `ngo-reservations/api.js` still has its own request code instead of the shared `api()`.
-- `/provider` (Donor) is a placeholder landing page marked "In development" (`RoleHomePage`); it is role-gated and `/auth/login`'s `landing` value maps to it. `/admin` is Role E's real admin dashboard.
+- `/provider` (Donor) is Role C's verification stepper, not a listings screen; it is role-gated and `/auth/login`'s `landing` value maps to it. `/admin` is Role E's real admin dashboard.
 
 ## Admin and impact (Role E)
 - [ ] Demo mode, **Continue as Admin**: lands on `/admin` with user and listing stat cards. The header shows Admin, Proofs, Users and Impact links; NGO and Donor see only Impact (plus their own links).
@@ -68,3 +68,10 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] `/impact` loads without signing in and shows meals redistributed (an estimate), kg saved, and the monthly chart.
 - [ ] A NGO or Donor opening `/admin`, `/admin/proofs` or `/admin/users` sees "Not available for your role".
 - [ ] Live stack: `admin@agape.demo` sees real counts at `/admin`; the proof queue is empty until a proof exists. Backend: `pytest tests/admin tests/impact`.
+
+## Verification (Role C)
+- [ ] Demo mode, **Donor**: `/provider` shows the Verification page, an orange band, "Not submitted" and the two tabs. Step 2 is disabled until step 1 is approved. Submitting needs a business name, a document, a valid PAN (`ABCDE1234F`) and a 12-digit Aadhaar; bad values show inline errors.
+- [ ] Demo mode, **NGO**: `/ngo/onboarding` (header link **Onboarding**) asks for a registration number and certificate.
+- [ ] Demo mode, **Admin**: `/admin/verifications` (header link **Verifications**) lists requests; filter by status and type; Approve works, Reject needs a reason; **View document** opens the private file in a viewer.
+- [ ] Live stack: register a restaurant donor, submit step 1 at `/provider`, then sign in as `admin@agape.demo` and approve it at `/admin/verifications`; the donor's step 2 tab unlocks. An NGO submits at `/ngo/onboarding`; approval flips `ngo_profiles.status`.
+- [ ] Wrong roles see "Not available for your role". Backend: `pytest tests/verification`.
