@@ -57,7 +57,7 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] Stop the backend: pages show a network error message, not a blank screen (the error boundary catches crashes).
 
 ## Known gaps to mention if asked
-- The Donor screens (listing creation) are not built in this frontend yet.
+- Donors can create listings at `/provider/listings`, but cannot edit or cancel them from the UI yet (the backend `PATCH /listings/{id}` and `POST /listings/{id}/cancel` exist).
 - Role D's `ngo-reservations/api.js` still has its own request code instead of the shared `api()`.
 - `/provider` (Donor) is Role C's verification stepper, not a listings screen; it is role-gated and `/auth/login`'s `landing` value maps to it. `/admin` is Role E's real admin dashboard.
 
@@ -75,3 +75,17 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] Demo mode, **Admin**: `/admin/verifications` (header link **Verifications**) lists requests; filter by status and type; Approve works, Reject needs a reason; **View document** opens the private file in a viewer.
 - [ ] Live stack: register a restaurant donor, submit step 1 at `/provider`, then sign in as `admin@agape.demo` and approve it at `/admin/verifications`; the donor's step 2 tab unlocks. An NGO submits at `/ngo/onboarding`; approval flips `ngo_profiles.status`.
 - [ ] Wrong roles see "Not available for your role". Backend: `pytest tests/verification`.
+
+## Donor listings (`/provider/listings`)
+- [ ] Demo mode, **Donor**: the header shows **Listings** and **Verification**; `/provider` has an "Open listings" card. `/provider/listings` shows the orange "Surplus listings" band, a "New listing" form on the left and "Your listings" on the right (two sample listings, each with "about N (estimate)").
+- [ ] Press **List this food** with the form empty: inline errors for the name, food type, quantity and coordinates; nothing is sent. A latitude of `120` is refused.
+- [ ] Fill in a name, food type, quantity (try both `portions` and `kg`), keep the prefilled window and enter `28.6139` / `77.2090`: the listing appears at the top of "Your listings" as Available, with a green notice "about N meals (an estimate)".
+- [ ] **Use my current location** fills the coordinates (or explains that the location was not shared).
+- [ ] Live stack, `provider@agape.demo` (approved restaurant): the page loads the seeded listings from `GET /listings/mine` and a new listing also appears on the NGO board (`/ngo`, signed in as `ngo@agape.demo`).
+- [ ] Live stack, gating: register a new restaurant donor (not yet approved). `/provider/listings` shows "Get verified before you list food" with a link to `/provider` and no form; calling `POST /api/v1/listings` directly returns 403 `NOT_VERIFIED`. After an admin approves step 1 at `/admin/verifications` the form appears. General (home kitchen) donors skip verification.
+
+## Seeded demo items for the admin queues
+After `python -m app.db.seed` (run it with the same `PRIVATE_UPLOAD_DIR` you start the API with; with none set it uses `backend/.private_uploads`):
+- [ ] `/admin/verifications` (as `admin@agape.demo`): one pending NGO request from `pending.ngo@agape.demo` ("Demo Pending NGO Trust") with a viewable registration PDF. Approve it and `pending.ngo@agape.demo` becomes a verified NGO.
+- [ ] `/admin/proofs`: one pending proof, "Rajma chawal, 18 portions (picked up)", collected by Demo Helping Hands Trust, with a viewable photo. Review it with a star rating.
+- [ ] Re-running the seed adds nothing twice, and it does not put an item back to pending after an admin has decided it. To restore both queues, delete `backend/agape_dev.db` and re-seed.

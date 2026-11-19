@@ -2,6 +2,7 @@
 import { Routes, Route, Link } from 'react-router-dom'
 import { NgoBoardPage, NgoReservationsPage } from './features/ngo-reservations'
 import { AdminDashboard, AdminProofs, AdminUsers, ImpactPage } from './features/admin-impact'
+import { ProviderListingsPage } from './features/provider-listings'
 import { ProviderVerificationPage, NgoOnboardingPage, AdminVerificationsPage } from './features/verification'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           <Route path="/provider" element={<ProtectedRoute roles={['provider']}><ProviderVerificationPage /></ProtectedRoute>} />
+          <Route path="/provider/listings" element={<ProtectedRoute roles={['provider']}><ProviderListingsPage /></ProtectedRoute>} />
           <Route path="/admin" element={adminOnly(<AdminDashboard />)} />
           <Route path="/admin/proofs" element={adminOnly(<AdminProofs />)} />
           <Route path="/admin/users" element={adminOnly(<AdminUsers />)} />

@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import ProviderVerificationPage from '../ProviderVerificationPage'
@@ -54,14 +55,14 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('ProviderVerificationPage — stepper states', () => {
   it('shows step 1 form when not submitted', async () => {
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     expect(await screen.findByLabelText('PAN *')).toBeInTheDocument()
     expect(screen.getByLabelText(/Aadhaar number/)).toBeInTheDocument()
   })
 
   it('step 2 tab is disabled when step 1 is not approved', async () => {
     api.getProviderVerification.mockResolvedValue(notSubmitted())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await screen.findByLabelText('PAN *')
     const step2Tab = screen.getByRole('tab', { name: /FSSAI licence/i })
     expect(step2Tab).toBeDisabled()
@@ -69,7 +70,7 @@ describe('ProviderVerificationPage — stepper states', () => {
 
   it('step 2 tab is disabled when step 1 is pending', async () => {
     api.getProviderVerification.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await screen.findByText(/under review/i)
     const step2Tab = screen.getByRole('tab', { name: /FSSAI licence/i })
     expect(step2Tab).toBeDisabled()
@@ -77,7 +78,7 @@ describe('ProviderVerificationPage — stepper states', () => {
 
   it('step 2 tab is enabled when step 1 is approved', async () => {
     api.getProviderVerification.mockResolvedValue(step1Approved())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await screen.findByText(/Identity documents have been verified/i)
     const step2Tab = screen.getByRole('tab', { name: /FSSAI licence/i })
     expect(step2Tab).not.toBeDisabled()
@@ -86,7 +87,7 @@ describe('ProviderVerificationPage — stepper states', () => {
   it('shows pending message after step 1 submitted', async () => {
     api.getProviderVerification.mockResolvedValue(notSubmitted())
     api.submitProviderStep1.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await fillStep1()
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(await screen.findByText(/under review/i)).toBeInTheDocument()
@@ -94,7 +95,7 @@ describe('ProviderVerificationPage — stepper states', () => {
 
   it('shows rejection reason and Resubmit button when step 1 rejected', async () => {
     api.getProviderVerification.mockResolvedValue(step1Rejected())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     expect(await screen.findByText(/PAN does not match records/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resubmit' })).toBeInTheDocument()
   })
@@ -102,7 +103,7 @@ describe('ProviderVerificationPage — stepper states', () => {
 
 describe('ProviderVerificationPage — client validation', () => {
   it('rejects invalid PAN', async () => {
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await fillStep1({ pan: 'BAD' })
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(screen.getByText(/PAN must be 10 characters/i)).toBeInTheDocument()
@@ -110,7 +111,7 @@ describe('ProviderVerificationPage — client validation', () => {
   })
 
   it('rejects invalid Aadhaar', async () => {
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await fillStep1({ aadhaar: '123' })
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(screen.getByText(/12 digits/i)).toBeInTheDocument()
@@ -118,7 +119,7 @@ describe('ProviderVerificationPage — client validation', () => {
   })
 
   it('requires the business document and name before submitting step 1', async () => {
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
     await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -129,7 +130,7 @@ describe('ProviderVerificationPage — client validation', () => {
 
   it('sends the entity name, document, PAN and Aadhaar to the api', async () => {
     api.submitProviderStep1.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await fillStep1()
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => expect(api.submitProviderStep1).toHaveBeenCalledWith(
@@ -141,7 +142,7 @@ describe('ProviderVerificationPage — client validation', () => {
 describe('ProviderVerificationPage — step 2 (FSSAI)', () => {
   const openStep2 = async () => {
     api.getProviderVerification.mockResolvedValue(step1Approved())
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await screen.findByText(/Identity documents have been verified/i)
     await userEvent.click(screen.getByRole('tab', { name: /FSSAI licence/i }))
   }
@@ -173,7 +174,7 @@ describe('ProviderVerificationPage — step 2 (FSSAI)', () => {
 describe('ProviderVerificationPage — error display', () => {
   it('shows server error in alert', async () => {
     api.submitProviderStep1.mockRejectedValue(Object.assign(new Error('Duplicate pending'), { detail: 'A pending submission already exists', status: 409 }))
-    render(<ProviderVerificationPage />)
+    render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
     await fillStep1()
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/pending submission/i)

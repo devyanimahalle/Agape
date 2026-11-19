@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { Button, Badge, Card, LoadingState } from '../../components/ui'
 import { getProviderVerification, submitProviderStep1, submitProviderStep2 } from './api'
 import Page from './components/Page'
@@ -292,6 +293,16 @@ export default function ProviderVerificationPage() {
       {step2Disabled && (
         <p className="mt-4 text-sm text-muted">Step 2 unlocks once Step 1 is approved.</p>
       )}
+
+      <Card className="mt-8 flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl">Surplus listings</h2>
+          <p className="mt-1 text-sm text-muted">Post the food you have to give and see what you have listed.</p>
+        </div>
+        <Link to="/provider/listings" className="press rounded-[6px] bg-ink px-6 py-3 text-sm font-bold uppercase tracking-[1px] text-canvas hover:bg-toast">
+          Open listings
+        </Link>
+      </Card>
     </Page>
   )
 }
