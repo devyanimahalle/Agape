@@ -8,7 +8,10 @@ const navCls = ({ isActive }) =>
 
 export default function Layout() {
   const { user, mock, mockRole, setMockRole } = useAuth()
-  const roleNotice = useLocation().state?.roleNotice
+  const location = useLocation()
+  const roleNotice = location.state?.roleNotice
+  // The role selector is a one-screen gateway: a short footer lets it fit a 1280x720 desktop without scrolling.
+  const compactFooter = location.pathname === '/select-role'
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-ink">
       <header className="on-ink bg-ink text-canvas">
@@ -66,15 +69,24 @@ export default function Layout() {
         {roleNotice && <p role="status" className="bg-highlight px-5 py-3 text-center text-sm font-bold text-ink md:px-10">{roleNotice}</p>}
         <Outlet />
       </div>
-      <footer className="on-ink bg-ink text-on-ink">
-        <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
-          <p aria-hidden="true" className="font-display text-[clamp(3.5rem,13vw,9rem)] uppercase leading-[0.85] text-brand-bright">Agape</p>
-          <p className="mt-6 max-w-3xl text-sm leading-relaxed">
-            NGOs are admin-verified. FSSAI numbers get a format check plus admin review. Documents are stored privately.
-            Meal figures are estimates.
-          </p>
-        </div>
-      </footer>
+      {compactFooter ? (
+        <footer className="on-ink bg-ink text-on-ink">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-5 py-4 md:px-10">
+            <p aria-hidden="true" className="font-display text-3xl uppercase leading-none text-brand-bright">Agape</p>
+            <p className="text-xs leading-relaxed">NGOs are admin-verified. Documents are stored privately. Meal figures are estimates.</p>
+          </div>
+        </footer>
+      ) : (
+        <footer className="on-ink bg-ink text-on-ink">
+          <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
+            <p aria-hidden="true" className="font-display text-[clamp(3.5rem,13vw,9rem)] uppercase leading-[0.85] text-brand-bright">Agape</p>
+            <p className="mt-6 max-w-3xl text-sm leading-relaxed">
+              NGOs are admin-verified. FSSAI numbers get a format check plus admin review. Documents are stored privately.
+              Meal figures are estimates.
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

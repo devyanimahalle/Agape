@@ -50,3 +50,13 @@ describe('RoleSelectPage', () => {
     expect(screen.getByRole('link', { name: 'Back to the home page' })).toHaveAttribute('href', '/')
   })
 })
+
+describe('RoleSelectPage compact layout', () => {
+  it('uses the compact band (no tall minimum height) and keeps every CTA on one line', () => {
+    setup()
+    expect(screen.getByRole('banner')).not.toHaveClass('md:min-h-[21rem]')
+    for (const link of screen.getAllByRole('link', { name: /^Sign in as/ })) {
+      expect(link).toHaveClass('whitespace-nowrap')
+    }
+  })
+})
