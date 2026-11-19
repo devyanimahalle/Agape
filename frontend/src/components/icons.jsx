@@ -1,12 +1,13 @@
-// Small line icons drawn on a 24px grid with currentColor strokes, so they take the ink or orange of their tile.
-// Decorative: always aria-hidden (the text next to them carries the meaning).
+// Line icons for the landing cards. One construction rule for all of them: a 24 x 24 grid, whole-number coordinates,
+// a 2px stroke with round caps and joins, and plain primitives (rect, line, path). They take the colour of their
+// tile through currentColor (orange on ink, ink on orange). Decorative: always aria-hidden.
 function Svg({ children, className = 'h-6 w-6' }) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -18,51 +19,55 @@ function Svg({ children, className = 'h-6 w-6' }) {
   )
 }
 
-// A bowl with steam: a donor lists food.
+// Donors list food: a bowl with three steam lines.
 export const BowlIcon = (props) => (
   <Svg {...props}>
-    <path d="M3 12h18a9 9 0 0 1-18 0Z" />
-    <path d="M8 8c0-1.6 1.6-1.6 1.6-3.2M12 8c0-1.6 1.6-1.6 1.6-3.2M16 8c0-1.6 1.6-1.6 1.6-3.2" />
+    <line x1="3" y1="11" x2="21" y2="11" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <line x1="9" y1="3" x2="9" y2="7" />
+    <line x1="12" y1="3" x2="12" y2="7" />
+    <line x1="15" y1="3" x2="15" y2="7" />
   </Svg>
 )
 
-// A shield with a tick: a verified NGO reserves.
+// Verified NGOs reserve: a shield with a tick.
 export const ShieldCheckIcon = (props) => (
   <Svg {...props}>
-    <path d="M12 3l7 3v5.2c0 4.4-2.9 7.9-7 9.8-4.1-1.9-7-5.4-7-9.8V6l7-3Z" />
+    <path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6l8-3Z" />
     <path d="M9 12l2 2 4-4" />
   </Svg>
 )
 
-// A parcel: the pickup is confirmed.
+// Pickup is confirmed: a parcel, drawn as a cube.
 export const ParcelIcon = (props) => (
   <Svg {...props}>
-    <path d="M4 8l8-4 8 4v8l-8 4-8-4V8Z" />
-    <path d="M4 8l8 4 8-4M12 12v8" />
+    <path d="M12 2l9 5v10l-9 5-9-5V7l9-5Z" />
+    <path d="M3 7l9 5 9-5" />
+    <line x1="12" y1="12" x2="12" y2="22" />
   </Svg>
 )
 
-// A heart: NGOs.
+// NGOs: a heart made of two round lobes and a point.
 export const HeartIcon = (props) => (
   <Svg {...props}>
-    <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
+    <path d="M4 9a4 4 0 0 1 8 0 4 4 0 0 1 8 0c0 5-4 9-8 12-4-3-8-7-8-12Z" />
   </Svg>
 )
 
-// A shopfront: donors.
+// Donors: a shopfront with an awning and a door.
 export const StorefrontIcon = (props) => (
   <Svg {...props}>
-    <path d="M4 9l1.6-5h12.8L20 9" />
-    <path d="M4 9a2.67 2.67 0 0 0 5.33 0 2.67 2.67 0 0 0 5.34 0A2.67 2.67 0 0 0 20 9" />
-    <path d="M5 11.5V20h14v-8.5M10 20v-5h4v5" />
+    <path d="M4 4h16l2 6H2l2-6Z" />
+    <path d="M4 10v10h16V10" />
+    <path d="M10 20v-5h4v5" />
   </Svg>
 )
 
-// A clipboard with a tick: admins reviewing.
+// Admins: a clipboard with a tick.
 export const ClipboardCheckIcon = (props) => (
   <Svg {...props}>
-    <path d="M9 4h6v3H9V4Z" />
-    <path d="M9 5.5H7a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-2" />
+    <path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+    <rect x="9" y="2" width="6" height="4" rx="1" />
     <path d="M9 14l2 2 4-4" />
   </Svg>
 )
