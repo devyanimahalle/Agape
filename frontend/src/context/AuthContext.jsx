@@ -55,6 +55,13 @@ export function AuthProvider({ children }) {
     try { localStorage.setItem(MOCK_KEY, r) } catch { /* ignore */ }
   }, [])
 
+  // Re-read the session from /auth/me (call after setToken() on login). Returns the user.
+  const refresh = useCallback(async () => {
+    const u = await api('/auth/me')
+    setUser(u)
+    return u
+  }, [])
+
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
@@ -67,9 +74,10 @@ export function AuthProvider({ children }) {
       mock: USE_MOCKS,
       mockRole,
       setMockRole,
+      refresh,
       logout,
     }),
-    [user, loading, mockRole, setMockRole, logout],
+    [user, loading, mockRole, setMockRole, refresh, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

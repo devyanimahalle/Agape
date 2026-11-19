@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
 
 function NotFound() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/ngo" element={ngoOnly(<NgoBoardPage />)} />
           <Route path="/ngo/reservations" element={ngoOnly(<NgoReservationsPage />)} />
           <Route path="*" element={<NotFound />} />

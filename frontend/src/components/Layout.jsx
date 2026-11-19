@@ -32,7 +32,9 @@ export default function Layout() {
                 <span>{user.name ?? ROLE_LABEL[user.role]}</span>
                 <button onClick={logout} className="underline">Sign out</button>
               </>
-            ) : null}
+            ) : (
+              <Link to="/login" className="underline">Sign in</Link>
+            )}
           </div>
         </div>
       </header>
