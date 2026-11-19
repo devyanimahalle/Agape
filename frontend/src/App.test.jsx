@@ -142,6 +142,52 @@ describe('strict per-role navigation', () => {
   })
 })
 
+describe('active link underline', () => {
+  const link = (name) => within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name })
+
+  it('marks only the current route with aria-current and the underlined nav-link style', () => {
+    signInAs('ngo')
+    renderAt('/ngo/reservations')
+    expect(link('My reservations')).toHaveAttribute('aria-current', 'page')
+    for (const name of ['Food board', 'Onboarding', 'Impact']) {
+      expect(link(name)).not.toHaveAttribute('aria-current')
+    }
+    for (const name of ['Food board', 'My reservations', 'Onboarding', 'Impact']) {
+      expect(link(name)).toHaveClass('nav-link')
+    }
+  })
+
+  it('moves the underline when the route changes', async () => {
+    signInAs('ngo')
+    renderAt('/ngo')
+    expect(link('Food board')).toHaveAttribute('aria-current', 'page')
+    await userEvent.click(link('Impact'))
+    expect(link('Impact')).toHaveAttribute('aria-current', 'page')
+    expect(link('Food board')).not.toHaveAttribute('aria-current')
+  })
+
+  it('is scoped to each role\'s own links', () => {
+    signInAs('admin')
+    renderAt('/admin/users')
+    const nav = within(screen.getByRole('navigation', { name: 'Main' }))
+    expect(nav.getAllByRole('link').filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.textContent)).toEqual(['Users'])
+    expect(nav.queryByRole('link', { name: 'Food board' })).not.toBeInTheDocument()
+  })
+
+  it('the Dashboard link is only current on /admin itself', () => {
+    signInAs('admin')
+    renderAt('/admin/proofs')
+    expect(link('Proofs')).toHaveAttribute('aria-current', 'page')
+    expect(link('Dashboard')).not.toHaveAttribute('aria-current')
+  })
+
+  it('no longer uses a filled pill for the active link', () => {
+    signInAs('provider')
+    renderAt('/provider')
+    expect(link('Verification')).not.toHaveClass('bg-brand-bright')
+  })
+})
+
 describe('role-gated pages', () => {
   it('routes /account for a signed-in demo user', () => {
     signInAs('ngo')

@@ -14,6 +14,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import RoleSelectPage from './pages/RoleSelectPage'
 import PublicOnly from './components/PublicOnly'
+import CursorDot from './components/CursorDot'
 import AccountPage from './pages/AccountPage'
 
 function NotFound() {
@@ -31,6 +32,7 @@ const verifiedNgo = (el) => ngoOnly(<VerificationGate role="ngo">{el}</Verificat
 export default function App() {
   return (
     <ErrorBoundary>
+      <CursorDot />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<PublicOnly><HomePage /></PublicOnly>} />

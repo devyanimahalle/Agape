@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import HomePage from './HomePage'
@@ -18,9 +18,31 @@ describe('HomePage', () => {
     expect(screen.getByText('Every MEAL Matters')).toBeVisible()
   })
 
-  it('links the main CTAs to /ngo', () => {
+  it('has exactly two hero actions, Sign in and How it works, and no Find food button', () => {
     setup()
-    expect(screen.getByRole('link', { name: 'Find food near you' })).toHaveAttribute('href', '/ngo')
+    const hero = screen.getByRole('heading', { level: 1, name: 'AGAPE' }).closest('section')
+    const actions = within(hero).getAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')])
+    expect(actions).toEqual([['Sign in', '/select-role'], ['How it works', '#how']])
+    expect(screen.queryByText('Find food near you')).not.toBeInTheDocument()
+  })
+
+  it('makes both hero buttons large and solid with hover states', () => {
+    setup()
+    for (const name of ['Sign in', 'How it works']) {
+      expect(screen.getByRole('link', { name })).toHaveClass('px-8', 'py-4', 'text-base', 'press')
+    }
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveClass('bg-ink', 'text-canvas', 'hover:bg-toast')
+    expect(screen.getByRole('link', { name: 'How it works' })).toHaveClass('bg-canvas', 'text-ink', 'hover:bg-panel')
+  })
+
+  it('How it works points at a section that exists', () => {
+    setup()
+    expect(document.getElementById('how')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument()
+  })
+
+  it('still links the NGO role card to the food board', () => {
+    setup()
     expect(screen.getByRole('link', { name: 'Open food board' })).toHaveAttribute('href', '/ngo')
   })
 

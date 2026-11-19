@@ -3,8 +3,8 @@ import { useAuth, ROLES, ROLE_LABEL } from '../context/AuthContext'
 import { homeForRole, selectRolePath } from '../lib/routes'
 import ProfileMenu from './ProfileMenu'
 
-const navCls = ({ isActive }) =>
-  `press whitespace-nowrap rounded-[6px] px-3 py-1.5 ${isActive ? 'bg-brand-bright text-ink' : 'text-canvas hover:bg-toast'}`
+// The active route is marked by aria-current (set by NavLink) and drawn as an underline by .nav-link in index.css.
+const navCls = 'nav-link press whitespace-nowrap px-3 py-1.5 text-canvas'
 
 export default function Layout() {
   const { user, mock, mockRole, setMockRole } = useAuth()

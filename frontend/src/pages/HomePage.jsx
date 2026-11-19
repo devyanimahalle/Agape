@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Badge, Card } from '../components/ui'
 
 const btn = 'press rounded-[6px] px-6 py-3 text-sm font-bold uppercase tracking-[1px]'
+// The two hero actions: the same large, solid size so both read clearly on the orange band.
+const heroBtn = 'press inline-block rounded-[6px] px-8 py-4 text-base font-bold uppercase tracking-[1px]'
 
 const STEPS = [
   ['1', 'Donors list surplus food', 'Restaurants, caterers and other donors post what is available, how much, and the collection window.'],
@@ -40,9 +42,8 @@ export default function HomePage() {
                 Surplus food, collected in time. Agape connects food donors with admin-verified NGOs so good food gets collected before its window ends.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/ngo" className={`${btn} bg-ink text-canvas hover:bg-toast`}>Find food near you</Link>
-                <Link to="/select-role" className={`${btn} bg-canvas text-ink hover:bg-panel`}>Sign in</Link>
-                <a href="#how" className={`${btn} underline underline-offset-4`}>How it works</a>
+                <Link to="/select-role" className={`${heroBtn} bg-ink text-canvas hover:bg-toast`}>Sign in</Link>
+                <a href="#how" className={`${heroBtn} bg-canvas text-ink hover:bg-panel`}>How it works</a>
               </div>
             </div>
           </div>
