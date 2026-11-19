@@ -1,39 +1,43 @@
+import { Badge, Button, Card } from '../../../components/ui'
 import { countdownTone, formatCountdown, formatDistance, formatQuantity, formatWindow } from '../utils'
 import RatingStars from './RatingStars'
 
-const TONE = { ok: 'text-green-700', urgent: 'text-amber-700', closed: 'text-red-700' }
+const TONE = { ok: 'text-ok-ink', urgent: 'text-warn-ink', closed: 'text-bad-ink' }
+
+function Row({ label, children }) {
+  return (
+    <div className="rounded-[6px] bg-canvas px-4 py-2.5">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-0.5 break-words">{children}</dd>
+    </div>
+  )
+}
 
 export default function ListingCard({ listing, now, onReserve }) {
   const tone = countdownTone(listing.window_end, now)
   const closed = tone === 'closed'
   return (
-    <article className="rounded-lg border bg-white p-4 shadow-sm" aria-label={listing.title}>
+    <Card as="article" className="flex flex-col p-6" aria-label={listing.title}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">{listing.title}</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-3xl leading-none">{listing.title}</h3>
+          <p className="mt-2 text-muted">
             {listing.org_name} <RatingStars avg={listing.rating_avg} count={listing.rating_count} />
           </p>
         </div>
-        <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs">{formatDistance(listing.distance_km)}</span>
+        <Badge className="whitespace-nowrap">{formatDistance(listing.distance_km)}</Badge>
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <dt className="text-gray-500">Quantity</dt>
-        <dd>{formatQuantity(listing)} · {listing.food_type}</dd>
-        <dt className="text-gray-500">Estimate</dt>
-        <dd>≈ {listing.est_meals} meals · ≈ {listing.est_kg} kg <span className="text-xs text-gray-500">(estimate)</span></dd>
-        <dt className="text-gray-500">Collect between</dt>
-        <dd>{formatWindow(listing.window_start, listing.window_end)}</dd>
-        <dt className="text-gray-500">Address</dt>
-        <dd>{listing.address}</dd>
+      <dl className="mt-4 grid gap-2 sm:grid-cols-2">
+        <Row label="Quantity">{formatQuantity(listing)} · {listing.food_type}</Row>
+        <Row label="Estimate">≈ {listing.est_meals} meals · ≈ {listing.est_kg} kg <span className="text-xs text-muted">(estimate)</span></Row>
+        <Row label="Collect between">{formatWindow(listing.window_start, listing.window_end)}</Row>
+        <Row label="Address">{listing.address}</Row>
       </dl>
-      {listing.notes && <p className="mt-2 text-sm italic text-gray-600">{listing.notes}</p>}
-      <div className="mt-3 flex items-center justify-between">
-        <span className={`text-sm font-medium ${TONE[tone]}`} data-testid="countdown">{formatCountdown(listing.window_end, now)}</span>
-        <button type="button" disabled={closed} onClick={() => onReserve(listing)} className="rounded bg-green-700 px-3 py-1.5 text-sm text-white disabled:opacity-50">
-          Reserve
-        </button>
+      {listing.notes && <p className="mt-3 italic text-muted">{listing.notes}</p>}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
+        <span className={`font-semibold ${TONE[tone]}`} data-testid="countdown">{formatCountdown(listing.window_end, now)}</span>
+        <Button variant="brand" disabled={closed} onClick={() => onReserve(listing)}>Reserve</Button>
       </div>
-    </article>
+    </Card>
   )
 }

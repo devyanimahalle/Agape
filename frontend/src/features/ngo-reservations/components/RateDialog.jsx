@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../../components/ui'
 import Modal from './Modal'
 
 export default function RateDialog({ listing, onSubmit, onCancel }) {
@@ -22,7 +23,7 @@ export default function RateDialog({ listing, onSubmit, onCancel }) {
 
   return (
     <Modal title={`Rate ${listing.org_name}`} onClose={busy ? undefined : onCancel}>
-      <form onSubmit={submit} className="space-y-3 text-sm">
+      <form onSubmit={submit} className="space-y-4">
         <div role="radiogroup" aria-label="Rating" className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
@@ -32,22 +33,22 @@ export default function RateDialog({ listing, onSubmit, onCancel }) {
               aria-checked={stars === n}
               aria-label={`${n} star${n > 1 ? 's' : ''}`}
               onClick={() => setStars(n)}
-              className={`text-2xl ${n <= stars ? 'text-amber-500' : 'text-gray-300'}`}
+              className={`press h-11 w-11 rounded-[6px] text-2xl leading-none ${n <= stars ? 'bg-brand-bright text-ink' : 'bg-canvas text-muted'}`}
             >
               ★
             </button>
           ))}
         </div>
         <label className="block">
-          <span className="mb-1 block font-medium">Comment (optional)</span>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={3} className="w-full rounded border px-2 py-1" />
+          <span className="mb-1.5 block font-semibold">Comment (optional)</span>
+          <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={3} className="w-full rounded-[6px] bg-canvas px-4 py-3 focus:bg-panel" />
         </label>
-        {error && <p role="alert" className="text-red-700">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onCancel} disabled={busy} className="rounded border px-3 py-1.5">Skip</button>
-          <button type="submit" disabled={busy || !stars} className="rounded bg-green-700 px-3 py-1.5 text-white disabled:opacity-60">
+        {error && <p role="alert" className="rounded-[6px] bg-bad-bg px-4 py-3 text-bad-ink">{error}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>Skip</Button>
+          <Button type="submit" variant="brand" disabled={busy || !stars}>
             {busy ? 'Saving…' : 'Submit rating'}
-          </button>
+            </Button>
         </div>
       </form>
     </Modal>

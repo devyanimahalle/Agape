@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Button, Card } from '../../components/ui'
+import PageHeader from '../../components/PageHeader'
 import * as api from './api'
 import CompleteDialog from './components/CompleteDialog'
 import ConfirmDialog from './components/ConfirmDialog'
@@ -78,34 +80,32 @@ export default function NgoReservationsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">My reservations</h1>
-          <p className="text-sm text-gray-600"><a className="underline" href="/ngo">Back to the board</a></p>
-        </div>
-        <div role="tablist" aria-label="Filter" className="flex overflow-hidden rounded border text-sm">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 ${tab === t.id ? 'bg-gray-800 text-white' : 'bg-white'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </header>
+    <main>
+      <PageHeader title="My reservations">
+        <a className="font-bold underline underline-offset-4" href="/ngo">Back to the board</a>
+      </PageHeader>
+      <div className="mx-auto max-w-6xl space-y-3 px-5 py-12 md:px-10 md:py-20">
+      <div role="tablist" aria-label="Filter" className="flex flex-wrap gap-1">
+        {TABS.map((t) => (
+          <Button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} variant={tab === t.id ? 'brand' : 'dark'} className="!px-5 !py-2">
+            {t.label}
+          </Button>
+        ))}
+      </div>
 
       {notice && (
-        <p role="status" className="rounded border border-green-300 bg-green-50 p-3 text-sm">{notice.text}</p>
+        <p role="status" className="rounded-card bg-ok-bg p-5 text-ok-ink">{notice.text}</p>
       )}
-      {state === 'loading' && <p>Loading…</p>}
+      {state === 'loading' && <p className="p-8 text-center text-muted">Loading…</p>}
       {state === 'error' && (
-        <div role="alert" className="rounded border border-red-300 bg-red-50 p-3">
+        <div role="alert" className="rounded-card bg-bad-bg p-6 text-bad-ink">
           <p>{error}</p>
-          <button type="button" onClick={load} className="mt-2 rounded border px-2 py-1 text-sm">Try again</button>
+          <Button variant="dark" onClick={load} className="mt-4 !px-4 !py-2">Try again</Button>
         </div>
       )}
-      {state === 'ready' && rows.length === 0 && <p>Nothing here yet. Reserve food from the board.</p>}
+      {state === 'ready' && rows.length === 0 && <Card><p>Nothing here yet. Reserve food from the board.</p></Card>}
       {state === 'ready' && (
-        <div className="grid gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
             <ReservationCard
               key={r.id}
@@ -133,6 +133,7 @@ export default function NgoReservationsPage() {
         <CompleteDialog listing={completeTarget} onSubmit={submitComplete} onCancel={() => setCompleteTarget(null)} />
       )}
       {rateTarget && <RateDialog listing={rateTarget} onSubmit={submitRating} onCancel={() => setRateTarget(null)} />}
+      </div>
     </main>
   )
 }

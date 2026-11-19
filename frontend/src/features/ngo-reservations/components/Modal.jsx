@@ -1,6 +1,6 @@
 import { useEffect, useId } from 'react'
 
-/** Minimal accessible dialog (plain elements until the shared design system lands). */
+/** Accessible dialog on the Agape surface: white card, toast-tinted backdrop. z-index sits above Leaflet panes. */
 export default function Modal({ title, onClose, children }) {
   const titleId = useId()
   useEffect(() => {
@@ -9,10 +9,10 @@ export default function Modal({ title, onClose, children }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 id={titleId} className="mb-3 text-lg font-semibold">{title}</h2>
-        {children}
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-toast/60 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-card bg-panel p-6">
+        <h2 id={titleId} className="text-3xl leading-none">{title}</h2>
+        <div className="mt-4">{children}</div>
       </div>
     </div>
   )

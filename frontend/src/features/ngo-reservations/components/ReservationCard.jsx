@@ -1,38 +1,37 @@
+import { Badge, Button, Card } from '../../../components/ui'
 import { formatQuantity, formatWindow, isRateable, osmLink } from '../utils'
 
-const BADGE = { reserved: 'bg-amber-100 text-amber-800', completed: 'bg-green-100 text-green-800' }
+const TONE = { reserved: 'warn', completed: 'ok' }
 
 export default function ReservationCard({ reservation: r, onCancel, onComplete, onRate }) {
   const canRate = r.status === 'completed' && isRateable(r.provider_category) && !r.has_rated
   return (
-    <article className="rounded-lg border bg-white p-4 shadow-sm" aria-label={r.title}>
+    <Card as="article" className="p-6" aria-label={r.title}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">{r.title}</h3>
-          <p className="text-sm text-gray-600">{r.org_name}</p>
+          <h3 className="text-3xl leading-none">{r.title}</h3>
+          <p className="mt-2 text-muted">{r.org_name}</p>
         </div>
-        <span className={`rounded-full px-2 py-0.5 text-xs capitalize ${BADGE[r.status] ?? 'bg-gray-100'}`}>{r.status}</span>
+        <Badge tone={TONE[r.status] ?? 'neutral'} className="capitalize">{r.status}</Badge>
       </div>
-      <p className="mt-2 text-sm">{formatQuantity(r)} · ≈ {r.est_meals} meals <span className="text-xs text-gray-500">(estimate)</span></p>
-      <p className="text-sm text-gray-600">Collect between {formatWindow(r.window_start, r.window_end)}</p>
-      <p className="text-sm text-gray-600">
+      <p className="mt-4">{formatQuantity(r)} · ≈ {r.est_meals} meals <span className="text-xs text-muted">(estimate)</span></p>
+      <p className="mt-1 text-muted">Collect between {formatWindow(r.window_start, r.window_end)}</p>
+      <p className="mt-1 text-muted">
         {r.address}
         {r.lat != null && r.lng != null && (
-          <> · <a className="underline" href={osmLink(r.lat, r.lng)} target="_blank" rel="noreferrer">Open map</a></>
+          <> · <a className="font-semibold text-ink underline underline-offset-4" href={osmLink(r.lat, r.lng)} target="_blank" rel="noreferrer">Open map</a></>
         )}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         {r.status === 'reserved' && (
           <>
-            <button type="button" onClick={() => onComplete(r)} className="rounded bg-green-700 px-3 py-1.5 text-sm text-white">Complete pickup</button>
-            <button type="button" onClick={() => onCancel(r)} className="rounded border px-3 py-1.5 text-sm">Cancel reservation</button>
+            <Button variant="brand" onClick={() => onComplete(r)}>Complete pickup</Button>
+            <Button variant="dark" onClick={() => onCancel(r)}>Cancel reservation</Button>
           </>
         )}
-        {canRate && (
-          <button type="button" onClick={() => onRate(r)} className="rounded border px-3 py-1.5 text-sm">Rate provider</button>
-        )}
-        {r.status === 'completed' && r.has_rated && <span className="text-sm text-gray-500">Rated ✓</span>}
+        {canRate && <Button variant="dark" onClick={() => onRate(r)}>Rate provider</Button>}
+        {r.status === 'completed' && r.has_rated && <span className="text-muted">Rated ✓</span>}
       </div>
-    </article>
+    </Card>
   )
 }
