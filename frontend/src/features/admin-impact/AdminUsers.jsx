@@ -111,7 +111,36 @@ export default function AdminUsers() {
         {filteredUsers.length === 0 ? (
           <EmptyState title="No users found">{search ? 'Try adjusting your search terms.' : undefined}</EmptyState>
         ) : (
-          <Card className="overflow-hidden !p-0">
+          <>
+          <ul className="grid gap-3 md:hidden" aria-label="Users">
+            {filteredUsers.map((user) => {
+              const verification = getVerificationInfo(user);
+              return (
+                <li key={user.id}>
+                  <Card className="p-6">
+                    <h3 className="text-2xl leading-none">{user.name}</h3>
+                    <p className="mt-2 break-all text-xs text-muted">{user.email}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <Badge>{ROLE_LABEL[user.role] ?? user.role}</Badge>
+                      {verification?.category && <span className="text-xs capitalize text-muted">{verification.category}</span>}
+                      {verification && <StatusPill status={PILL[verification.status] ?? verification.status} />}
+                      <Badge tone={user.is_active ? 'ok' : 'bad'}>{user.is_active ? 'Active' : 'Inactive'}</Badge>
+                    </div>
+                    {getOrgInfo(user) !== '—' && <p className="mt-3 text-sm">{getOrgInfo(user)}</p>}
+                    <Button
+                      variant={user.is_active ? 'dark' : 'brand'}
+                      onClick={() => handleToggleActive(user)}
+                      disabled={togglingId === user.id}
+                      className="mt-4 !px-3 !py-1.5 !text-xs"
+                    >
+                      {togglingId === user.id ? '…' : user.is_active ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+          <Card className="hidden overflow-hidden !p-0 md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -159,6 +188,7 @@ export default function AdminUsers() {
               </table>
             </div>
           </Card>
+          </>
         )}
       </div>
 

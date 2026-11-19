@@ -3,14 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, setToken, USE_MOCKS } from '../lib/api'
 import { homeForRole, safeNext } from '../lib/routes'
 import { useAuth, ROLES, ROLE_LABEL } from '../context/AuthContext'
-import { Badge, Button } from '../components/ui'
+import { Button } from '../components/ui'
 
 const inputCls = 'mt-1.5 w-full rounded-[6px] bg-canvas px-4 py-3 focus:bg-panel'
 
 const FEATURES = [
   { title: 'NGO food board & reservations', text: 'Verified NGOs see nearby surplus food on a list or map, reserve it, then confirm pickup with proof.' },
-  { title: 'Donor surplus listings', text: 'Donors list surplus food with a collection window and see when it is reserved.', soon: true },
-  { title: 'Admin verification, honest claims', text: 'Admins review every NGO. FSSAI numbers get a format check plus admin review. Documents are stored privately. Meal figures are estimates.', soon: true },
+  { title: 'Donor surplus listings', text: 'Verified donors list surplus food with a collection window and see when it is reserved.' },
+  { title: 'Admin verification, honest claims', text: 'Admins review every NGO. FSSAI numbers get a format check plus admin review. Documents are stored privately. Meal figures are estimates.' },
 ]
 
 export default function LoginPage() {
@@ -62,7 +62,7 @@ export default function LoginPage() {
             {FEATURES.map((f, i) => (
               <li key={f.title} className="agape-rise" style={{ '--d': `${240 + i * 120}ms` }}>
                 <p className="text-lg font-bold">
-                  {f.title} {f.soon && <Badge tone="neutral" className="ml-1 align-middle">In development</Badge>}
+                  {f.title}
                 </p>
                 <p className="mt-1.5 leading-relaxed">{f.text}</p>
               </li>

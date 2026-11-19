@@ -7,13 +7,18 @@ const navCls = ({ isActive }) =>
 export default function Layout() {
   const { user, mock, mockRole, setMockRole, logout } = useAuth()
   return (
-    <div className="min-h-screen bg-canvas text-ink">
+    <div className="flex min-h-screen flex-col bg-canvas text-ink">
       <header className="on-ink bg-ink text-canvas">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 md:px-10">
           <Link to="/" className="font-display text-2xl uppercase leading-none tracking-[0.02em] text-brand-bright">Agape</Link>
-          <nav aria-label="Main" className="-ml-3 flex min-w-0 gap-1 overflow-x-auto md:ml-0">
-            <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
-            <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
+          <nav aria-label="Main" className="-ml-3 flex min-w-0 flex-wrap gap-1 md:ml-0">
+            {user?.role === 'ngo' && (
+              <>
+                <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
+                <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
+                <NavLink to="/ngo/onboarding" className={navCls}>Onboarding</NavLink>
+              </>
+            )}
             {user?.role === 'admin' && (
               <>
                 <NavLink to="/admin" end className={navCls}>Admin</NavLink>
@@ -28,7 +33,6 @@ export default function Layout() {
                 <NavLink to="/provider" end className={navCls}>Verification</NavLink>
               </>
             )}
-            {user?.role === 'ngo' && <NavLink to="/ngo/onboarding" className={navCls}>Onboarding</NavLink>}
             <NavLink to="/impact" className={navCls}>Impact</NavLink>
             {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
           </nav>
@@ -56,7 +60,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <Outlet />
+      <div className="flex-1"><Outlet /></div>
       <footer className="on-ink bg-ink text-on-ink">
         <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
           <p aria-hidden="true" className="font-display text-[clamp(3.5rem,13vw,9rem)] uppercase leading-[0.85] text-brand-bright">Agape</p>

@@ -253,10 +253,10 @@ export default function ProviderVerificationPage() {
   const step2Disabled = step1Status !== 'approved'
   const activeStatus = activeStep === 1 ? step1Status : step2Status
 
-  if (loading) return <Page title="Verification" subtitle={SUBTITLE}><LoadingState label="Loading verification status…" /></Page>
+  if (loading) return <Page title="Verification" subtitle={SUBTITLE} width="max-w-3xl"><LoadingState label="Loading verification status…" /></Page>
 
   return (
-    <Page title="Verification" subtitle={SUBTITLE}>
+    <Page title="Verification" subtitle={SUBTITLE} width="max-w-3xl">
       {error && <p role="alert" className="mb-6 rounded-[6px] bg-bad-bg px-4 py-3 text-sm text-bad-ink">{error}</p>}
 
       {data && (

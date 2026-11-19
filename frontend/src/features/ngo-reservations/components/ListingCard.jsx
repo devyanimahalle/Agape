@@ -20,7 +20,7 @@ export default function ListingCard({ listing, now, onReserve }) {
     <Card as="article" className="flex flex-col p-6" aria-label={listing.title}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-3xl leading-none">{listing.title}</h3>
+          <h3 className="text-2xl leading-none md:text-3xl">{listing.title}</h3>
           <p className="mt-2 text-muted">
             {listing.org_name} <RatingStars avg={listing.rating_avg} count={listing.rating_count} />
           </p>

@@ -25,9 +25,9 @@ export default function Modal({ open, onClose, title, children }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-md rounded-card border border-line bg-panel p-6 outline-none"
+        className="w-full max-w-md rounded-card bg-panel p-6 outline-none md:p-8"
       >
-        <h2 id={titleId} className="text-2xl">{title}</h2>
+        <h2 id={titleId} className="text-3xl leading-none">{title}</h2>
         <div className="mt-3">{children}</div>
       </div>
     </div>

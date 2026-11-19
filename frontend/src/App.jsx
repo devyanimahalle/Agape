@@ -5,6 +5,7 @@ import { AdminDashboard, AdminProofs, AdminUsers, ImpactPage } from './features/
 import { ProviderListingsPage } from './features/provider-listings'
 import { ProviderVerificationPage, NgoOnboardingPage, AdminVerificationsPage } from './features/verification'
 import Layout from './components/Layout'
+import Page from './components/Page'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
@@ -13,10 +14,9 @@ import AccountPage from './pages/AccountPage'
 
 function NotFound() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-5xl">Not found</h1>
-      <Link to="/" className="mt-4 inline-block underline">Back home</Link>
-    </main>
+    <Page title="Not found" subtitle="That page does not exist." width="max-w-3xl">
+      <Link to="/" className="press inline-block rounded-[6px] bg-ink px-6 py-3 text-sm font-bold uppercase tracking-[1px] text-canvas hover:bg-toast">Back home</Link>
+    </Page>
   )
 }
 

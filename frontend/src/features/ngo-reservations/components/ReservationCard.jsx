@@ -9,7 +9,7 @@ export default function ReservationCard({ reservation: r, onCancel, onComplete, 
     <Card as="article" className="p-6" aria-label={r.title}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-3xl leading-none">{r.title}</h3>
+          <h3 className="text-2xl leading-none md:text-3xl">{r.title}</h3>
           <p className="mt-2 text-muted">{r.org_name}</p>
         </div>
         <Badge tone={TONE[r.status] ?? 'neutral'} className="capitalize">{r.status}</Badge>
@@ -30,7 +30,7 @@ export default function ReservationCard({ reservation: r, onCancel, onComplete, 
           </>
         )}
         {canRate && <Button variant="dark" onClick={() => onRate(r)}>Rate provider</Button>}
-        {r.status === 'completed' && r.has_rated && <span className="text-muted">Rated ✓</span>}
+        {r.status === 'completed' && r.has_rated && <span className="text-muted">Rated</span>}
       </div>
     </Card>
   )

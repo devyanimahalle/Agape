@@ -153,7 +153,7 @@ function VerificationCard({ item, onDecide }) {
 
   return (
     <>
-      <Card as="article" className="space-y-4 p-6 md:p-7">
+      <Card as="article" className="space-y-4 p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl md:text-3xl">{title}</h2>

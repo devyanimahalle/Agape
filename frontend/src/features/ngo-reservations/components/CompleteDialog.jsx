@@ -46,7 +46,7 @@ export default function CompleteDialog({ listing, onSubmit, onCancel }) {
             {files.map((f, i) => (
               <li key={`${f.name}-${i}`} className="flex items-center justify-between rounded-[6px] bg-canvas px-4 py-2">
                 <span className="truncate">{f.name}</span>
-                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</button>
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>Remove</button>
               </li>
             ))}
           </ul>
