@@ -191,13 +191,3 @@ describe('hero pickup visual styles', () => {
     expect(frames).not.toMatch(/#[0-9a-f]{3,6}/i)
   })
 })
-
-describe('landing icon tiles styles', () => {
-  it('swap colour and pop on card hover, and stay still under reduced motion', () => {
-    expect(CSS).toMatch(/\.icon-tile \{ transition: background-color 0\.2s, color 0\.2s, scale 0\.2s/)
-    expect(CSS).toMatch(/\.group:hover \.icon-tile \{ scale: 1\.06; \}/)
-    const reduced = CSS.slice(CSS.indexOf('.icon-tile {'))
-    expect(reduced).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.icon-tile \{ transition: none; \}/)
-    expect(reduced).toMatch(/\.group:hover \.icon-tile \{ scale: none; \}/)
-  })
-})

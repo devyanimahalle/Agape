@@ -126,11 +126,3 @@ input, select, textarea { transition: background-color 0.18s; }
   .pickup-stage:first-child { background: var(--color-brand-bright); color: var(--color-ink); }
   .pickup-fill { transform: scaleX(0.6); }
 }
-
-/* Icon tiles on the landing cards: colour swap and a slight pop when the card is hovered. */
-.icon-tile { transition: background-color 0.2s, color 0.2s, scale 0.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
-.group:hover .icon-tile { scale: 1.06; }
-@media (prefers-reduced-motion: reduce) {
-  .icon-tile { transition: none; }
-  .group:hover .icon-tile { scale: none; }
-}

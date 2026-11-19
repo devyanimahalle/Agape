@@ -90,39 +90,27 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument()
   })
 
-  it('gives each How it works step a decorative line icon beside its title', () => {
+  it('keeps the How it works steps as typographic cards: a title and a description, no icons', () => {
     setup()
-    const how = document.getElementById('how')
-    const steps = [...how.querySelectorAll('ol > li')]
+    const steps = [...document.getElementById('how').querySelectorAll('ol > li')]
     expect(steps).toHaveLength(3)
     for (const li of steps) {
-      const svg = li.querySelector('svg')
-      expect(svg).toBeInTheDocument()
-      expect(svg).toHaveAttribute('aria-hidden', 'true')
-      expect(svg).toHaveAttribute('stroke', 'currentColor')
-      expect(li.querySelector('.icon-tile')).toHaveClass('bg-ink', 'text-brand-bright')
+      expect(li.querySelector('svg')).toBeNull()
+      expect(li.querySelector('img')).toBeNull()
+      expect(li.querySelector('.icon-tile')).toBeNull()
+      const card = li.firstElementChild
+      expect(card.children).toHaveLength(2) // h3 + p
+      expect(card.firstElementChild.tagName).toBe('H3')
     }
     expect(within(steps[0]).getByRole('heading', { name: 'Donors list surplus food' })).toBeInTheDocument()
     expect(within(steps[1]).getByRole('heading', { name: 'Verified NGOs reserve' })).toBeInTheDocument()
     expect(within(steps[2]).getByRole('heading', { name: 'Pickup is confirmed' })).toBeInTheDocument()
   })
 
-  it('uses a different icon for each step and each role', () => {
+  it('carries no icon graphics or images on the landing page', () => {
     setup()
-    const paths = (root) => [...root.querySelectorAll('svg')].map((s) => s.innerHTML)
-    const stepIcons = paths(document.getElementById('how'))
-    expect(new Set(stepIcons).size).toBe(3)
-    const roleIcons = paths(document.getElementById('roles').closest('section'))
-    expect(roleIcons).toHaveLength(3)
-    expect(new Set(roleIcons).size).toBe(3)
-  })
-
-  it('icons are flat: no shadows, only theme colour classes', () => {
-    setup()
-    for (const tile of document.querySelectorAll('.icon-tile')) {
-      expect(tile.className).not.toMatch(/shadow|#[0-9a-f]{3,6}/i)
-      expect(tile.className).toMatch(/group-hover:/)
-    }
+    expect(document.querySelectorAll('svg')).toHaveLength(0)
+    expect(document.querySelectorAll('img')).toHaveLength(0)
   })
 
   it('states the honest-claims copy', () => {
@@ -135,15 +123,13 @@ describe('HomePage', () => {
     expect(document.body.textContent).not.toMatch(/FSSAI[- ]verified|FSSAI[- ]certified/i)
   })
 
-  it('previews NGO, Donor and Admin as cards with an icon each', () => {
+  it('previews NGO, Donor and Admin as typographic cards with no icons', () => {
     setup()
     const section = document.getElementById('roles').closest('section')
     const cards = within(section).getAllByRole('article')
     expect(cards).toHaveLength(3)
     expect(cards.map((c) => within(c).getByRole('heading').textContent)).toEqual(['NGO', 'Donor', 'Admin'])
-    for (const card of cards) {
-      expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    }
+    for (const card of cards) expect(card.querySelector('svg')).toBeNull()
     expect(screen.queryByText('In development')).not.toBeInTheDocument()
   })
 
@@ -161,8 +147,8 @@ describe('HomePage', () => {
     setup()
     const section = document.getElementById('roles').closest('section')
     for (const card of within(section).getAllByRole('article')) {
-      expect(card).toHaveClass('card-lift', 'group')
-      expect(card.children).toHaveLength(3) // icon tile, name, description
+      expect(card).toHaveClass('card-lift')
+      expect(card.children).toHaveLength(2) // name, description
     }
   })
 })
