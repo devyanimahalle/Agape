@@ -24,9 +24,9 @@ Open `/login` and use **Continue as NGO / Donor / Admin**, or switch roles from 
 ## Live backend
 1. Set `VITE_USE_MOCKS=false` in `frontend/.env`.
 2. Run the API on `localhost:8000` (the dev server proxies `/api` there) with routers mounted under `/api/v1`.
-3. The login form calls `POST /api/v1/auth/login` (expects `{ "access_token": "..." }`) and then `GET /api/v1/auth/me` (expects `id`, `role`, optional `name`, `profile.lat/lng`). The token is stored in `localStorage['access_token']`. Roles: `provider`, `ngo`, `admin`.
+3. The login form calls `POST /api/v1/auth/login` (expects `{ "access_token": "..." }`) and then `GET /api/v1/auth/me`, which returns `{ "user": { id, email, role, name, phone }, "profile": {...}, "verification_status": "..." }` (`profile.lat/lng` for NGOs, `null` profile for admins). The token is stored in `localStorage['access_token']`. Roles: `provider`, `ngo`, `admin`.
 
-These auth endpoints are not in the repo yet; they are the contract Role B's work must meet.
+These auth endpoints are implemented on Role B's branch (`feature/Bhanupriya-B`) and arrive here when it is merged; see `docs/integration-guide.md`.
 
 ## Test and build
 ```bash

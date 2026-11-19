@@ -32,7 +32,9 @@ docs/                      design-system.md, architecture.md, integration-guide.
 - Token key: `localStorage['access_token']` (read by `lib/api.js`).
 - Roles: `provider` (shown as "Donor"), `ngo`, `admin`. `provider` and `ngo` are used by the backend today; `admin` is assumed and must be confirmed by whoever builds auth.
 - `AuthContext` calls `GET /auth/me` when `VITE_USE_MOCKS` is not `true`. With `VITE_USE_MOCKS=true` it provides a demo user and a Donor/NGO/Admin switcher in the header.
-- `/auth/me` is expected to return `{ id, role, name?, profile?: { lat, lng } }`. It is not implemented in the repo yet.
+- `GET /auth/me` (Role B) returns `{ user: { id, email, role, name, phone }, profile, verification_status }`. `profile` holds the provider/NGO profile columns (NGOs include `lat`, `lng`) and is `null` for admins. `AuthContext` (`parseMe`) unwraps `data.user` (falling back to a flat top-level user if `user` is absent) and exposes `user`, `profile` and `verificationStatus` through `useAuth()`.
+- `POST /auth/login` returns `{ access_token, token_type, user, landing }`; the frontend uses only `access_token`.
+- These endpoints live on Role B's branch and are not on `feature/RoleA` yet (see `integration-guide.md`).
 
 ## Env
 `VITE_API_BASE` (default `/api/v1`), `VITE_USE_MOCKS` (`true` = demo user and Role D's mock data). Dev server proxies `/api` to `localhost:8000`.

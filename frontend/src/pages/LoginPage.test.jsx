@@ -43,7 +43,10 @@ describe('LoginPage (live backend)', () => {
 
   it('posts credentials, saves the token, refreshes the session and sends an NGO to /ngo', async () => {
     h.api.mockImplementation(async (path) =>
-      path === '/auth/login' ? { access_token: 'tok-1' } : { id: '1', role: 'ngo', name: 'Helping Hands' })
+      path === '/auth/login'
+        ? { access_token: 'tok-1' }
+        : { user: { id: 1, email: 'a@b.org', role: 'ngo', name: 'Helping Hands', phone: '+91 90000 00000' },
+            profile: { lat: 28.6, lng: 77.2 }, verification_status: 'approved' })
     renderLogin()
     await fillAndSubmit()
     expect(await screen.findByText('NGO landing')).toBeInTheDocument()
@@ -51,9 +54,27 @@ describe('LoginPage (live backend)', () => {
     expect(h.setToken).toHaveBeenCalledWith('tok-1')
   })
 
-  it('sends non-NGO users to /', async () => {
+  it('sends non-NGO users to / (nested /auth/me shape)', async () => {
     h.api.mockImplementation(async (path) =>
-      path === '/auth/login' ? { access_token: 'tok-2' } : { id: '2', role: 'provider' })
+      path === '/auth/login'
+        ? { access_token: 'tok-2' }
+        : { user: { id: 2, role: 'provider' }, profile: null, verification_status: 'pending' })
+    renderLogin()
+    await fillAndSubmit()
+    expect(await screen.findByText('Home landing')).toBeInTheDocument()
+  })
+
+  it('still works if /auth/me returns a flat user (fallback)', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login' ? { access_token: 'tok-3' } : { id: '3', role: 'ngo' })
+    renderLogin()
+    await fillAndSubmit()
+    expect(await screen.findByText('NGO landing')).toBeInTheDocument()
+  })
+
+  it('sends a flat provider to / (fallback)', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login' ? { access_token: 'tok-4' } : { id: '4', role: 'provider' })
     renderLogin()
     await fillAndSubmit()
     expect(await screen.findByText('Home landing')).toBeInTheDocument()

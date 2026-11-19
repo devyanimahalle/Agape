@@ -13,6 +13,17 @@ const MOCK_USERS = {
 }
 
 const AuthContext = createContext(null)
+const EMPTY = { user: null, profile: null, verificationStatus: null }
+
+// /auth/me returns { user, profile, verification_status }. Fall back to a flat user object if `user` is absent.
+export function parseMe(data) {
+  const user = data?.user ?? data ?? null
+  return {
+    user,
+    profile: data?.profile ?? user?.profile ?? null,
+    verificationStatus: data?.verification_status ?? null,
+  }
+}
 
 function readMockRole() {
   try {
@@ -25,7 +36,7 @@ function readMockRole() {
 
 export function AuthProvider({ children }) {
   const [mockRole, setMockRoleState] = useState(readMockRole)
-  const [user, setUser] = useState(null)
+  const [session, setSession] = useState(EMPTY)
   const [loading, setLoading] = useState(!USE_MOCKS)
 
   useEffect(() => {
@@ -36,11 +47,11 @@ export function AuthProvider({ children }) {
     }
     let live = true
     api('/auth/me')
-      .then((u) => live && setUser(u))
+      .then((data) => live && setSession(parseMe(data)))
       .catch(() => {
         if (live) {
           setToken(null)
-          setUser(null)
+          setSession(EMPTY)
         }
       })
       .finally(() => live && setLoading(false))
@@ -57,19 +68,21 @@ export function AuthProvider({ children }) {
 
   // Re-read the session from /auth/me (call after setToken() on login). Returns the user.
   const refresh = useCallback(async () => {
-    const u = await api('/auth/me')
-    setUser(u)
-    return u
+    const next = parseMe(await api('/auth/me'))
+    setSession(next)
+    return next.user
   }, [])
 
   const logout = useCallback(() => {
     setToken(null)
-    setUser(null)
+    setSession(EMPTY)
   }, [])
 
   const value = useMemo(
     () => ({
-      user: USE_MOCKS ? MOCK_USERS[mockRole] : user,
+      user: USE_MOCKS ? MOCK_USERS[mockRole] : session.user,
+      profile: USE_MOCKS ? null : session.profile,
+      verificationStatus: USE_MOCKS ? null : session.verificationStatus,
       loading: USE_MOCKS ? false : loading,
       mock: USE_MOCKS,
       mockRole,
@@ -77,7 +90,7 @@ export function AuthProvider({ children }) {
       refresh,
       logout,
     }),
-    [user, loading, mockRole, setMockRole, refresh, logout],
+    [session, loading, mockRole, setMockRole, refresh, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
