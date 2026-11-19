@@ -33,7 +33,7 @@ export default function HomePage() {
               className="agape-rise self-start justify-self-start rounded-[6px] bg-ink px-4 py-2 text-xl font-bold text-canvas md:text-2xl"
               style={{ '--d': '150ms' }}
             >
-              Agape : Every Meal Matters
+              Every MEAL Matters
             </p>
             <div className="agape-rise" style={{ '--d': '300ms' }}>
               <p className="max-w-xl text-lg leading-relaxed">

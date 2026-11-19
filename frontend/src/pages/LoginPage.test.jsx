@@ -110,7 +110,7 @@ describe('LoginPage (live backend)', () => {
 
   it('shows the Agape brand panel with honest feature copy', () => {
     renderLogin()
-    expect(screen.getByText('Agape : Every Meal Matters')).toBeInTheDocument()
+    expect(screen.getByText('Every MEAL Matters')).toBeInTheDocument()
     expect(screen.getByText('NGO food board & reservations')).toBeInTheDocument()
     expect(screen.getByText('Donor surplus listings')).toBeInTheDocument()
     expect(screen.getByText(/format check plus admin review/)).toBeInTheDocument()

@@ -56,7 +56,7 @@ export default function LoginPage() {
         <div className="mx-auto max-w-xl px-5 py-12 md:ml-auto md:mr-0 md:px-12 md:py-20">
           <p className="agape-rise font-display text-[clamp(4.5rem,15vw,9.5rem)] uppercase leading-[0.82]" aria-hidden="true">AGAPE</p>
           <p className="agape-rise mt-5 inline-block rounded-[6px] bg-ink px-3 py-1.5 font-bold text-canvas" style={{ '--d': '120ms' }}>
-            Agape : Every Meal Matters
+            Every MEAL Matters
           </p>
           <ul className="mt-12 space-y-8">
             {FEATURES.map((f, i) => (
