@@ -113,3 +113,11 @@ Seed data: `python -m app.db.seed` creates ONLY the admin (`admin@agape.demo` / 
 - [ ] Deleting a pending account on `/admin/users`, or **Reset demo accounts**, lowers the counts at once (reset: 0 and 0, Total users 1).
 - [ ] Live stack: leave the Dashboard open, submit a request from another browser, then click back into the tab: the number updates without a reload. Backend: `pytest tests/admin/test_pending_counts.py`.
 
+## Impact page matches the history
+- [ ] `/impact` (signed out or in): estimate-labelled cards (Meals redistributed, Kilograms saved, Pickups collected, Meals with approved proof, Verified donors, Verified NGOs), Monthly trend, All listings by status, By donor type and Recent collected pickups. Signed out, pickups show the donor type but no organisation names.
+- [ ] Signed in as a donor, NGO or admin, a "Your impact" section appears first with that account's own figures and named recent pickups. Its numbers match the account's own screens (a donor's listings, an NGO's reservations and proof state, the admin overview).
+- [ ] Demo mode: as **NGO** reserve a listing on the board and **Confirm pickup**; open **Impact**: Meals redistributed and Pickups collected went up, the pickup is first in Recent collected pickups with "No proof of donation yet", and "Your impact" counts it. Upload the proof of donation, switch to **Admin**, approve it in Proofs: Impact's "Meals with approved proof" rises. As **Donor**, list food (it appears on the NGO board), have the NGO collect it, and it counts under "Your impact as a donor".
+- [ ] **Reset demo accounts** (Users): Impact goes to 0 everywhere with the empty states. Deleting a donor removes its collected pickups from the totals.
+- [ ] Leave Impact open, act elsewhere, then return to the tab: the numbers update without a reload or a loading flash. At 390px there is no horizontal scroll.
+- [ ] Live stack: `pytest tests/impact`.
+

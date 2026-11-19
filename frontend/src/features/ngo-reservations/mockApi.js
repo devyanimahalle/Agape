@@ -1,4 +1,5 @@
 // In-memory stand-in for the backend, shaped exactly like the contract. Dev/demo use only.
+import { listings } from '../../lib/mockListings'
 import { addMockProof, mockProofSummary } from '../../lib/mockProofs'
 
 const hours = (h) => new Date(Date.now() + h * 3600 * 1000).toISOString()
@@ -11,18 +12,6 @@ const ME = {
   verification_status: 'approved',
 }
 
-const base = (o) => ({
-  provider_id: 1, food_type: 'cooked', unit: 'kg', est_meals: 0, est_kg: 0, notes: null, status: 'listed',
-  reserved_by_ngo_id: null, reserved_at: null, completed_at: null, created_at: hours(-1),
-  window_start: hours(-0.5), ...o,
-})
-let listings = [
-  base({ id: 1, title: 'Veg biryani', quantity: 20, est_meals: 50, est_kg: 20, window_end: hours(3), address: 'Karol Bagh, Delhi', lat: 28.6517, lng: 77.1907, org: 'Spice Route', category: 'restaurant', rating_avg: 4.6, rating_count: 12 }),
-  base({ id: 2, title: 'Wedding buffet surplus', quantity: 60, unit: 'portions', est_meals: 60, est_kg: 24, window_end: hours(0.4), address: 'Saket, Delhi', lat: 28.5245, lng: 77.2066, org: 'Royal Caterers', category: 'caterer', rating_avg: 4.1, rating_count: 5 }),
-  base({ id: 3, title: 'Bread and buns', quantity: 8, est_meals: 20, est_kg: 8, window_end: hours(5), address: 'Gurugram Sector 29', lat: 28.4595, lng: 77.0266, org: 'Neighbour Home Kitchen', category: 'general', rating_avg: null, rating_count: 0 }),
-  base({ id: 4, title: 'Dal and rice', quantity: 15, est_meals: 38, est_kg: 15, window_end: hours(2), address: 'Noida Sector 18', lat: 28.5708, lng: 77.3261, org: 'Spice Route', category: 'restaurant', rating_avg: 4.6, rating_count: 12 }),
-]
-const mine = new Set()
 const rated = new Set()
 
 function haversine(a, b, c, d) {
@@ -56,7 +45,6 @@ export function reserve(id) {
   if (!l) return Promise.reject(err(404, 'NOT_FOUND', 'Listing not found'))
   if (l.status !== 'listed') return Promise.reject(err(409, 'ALREADY_RESERVED', 'This listing is no longer available'))
   Object.assign(l, { status: 'reserved', reserved_by_ngo_id: ME.user.id, reserved_at: new Date().toISOString() })
-  mine.add(id)
   return wait(strip(l))
 }
 
@@ -65,7 +53,6 @@ export function cancelReservation(id) {
   if (!l || l.status !== 'reserved') return Promise.reject(err(409, 'INVALID_STATE', 'Only a reserved listing can be cancelled'))
   const open = new Date(l.window_end) > new Date()
   Object.assign(l, { status: open ? 'listed' : 'expired', reserved_by_ngo_id: null, reserved_at: null })
-  mine.delete(id)
   return wait(strip(l))
 }
 
@@ -78,7 +65,7 @@ export function completePickup(id) {
 
 export function submitProof(id, files, note) {
   const l = listings.find((x) => x.id === id)
-  if (!l || !mine.has(id)) return Promise.reject(err(404, 'NOT_FOUND', 'Listing not found'))
+  if (!l || l.reserved_by_ngo_id !== ME.user.id) return Promise.reject(err(404, 'NOT_FOUND', 'Listing not found'))
   if (l.status !== 'completed') return Promise.reject(err(409, 'INVALID_STATE', 'Confirm the pickup before uploading proof of donation'))
   if (!files?.length) return Promise.reject(err(400, 'PROOF_REQUIRED', 'Upload at least one proof of donation'))
   if (mockProofSummary(id).status === 'approved') return Promise.reject(err(409, 'PROOF_ALREADY_APPROVED', 'The proof of donation for this pickup was already approved'))
@@ -89,7 +76,7 @@ export function submitProof(id, files, note) {
 
 export function getReservations(status) {
   const rows = listings
-    .filter((l) => mine.has(l.id) && (!status || l.status === status))
+    .filter((l) => l.reserved_by_ngo_id === ME.user.id && (!status || l.status === status))
     .map((l) => ({ ...strip(l), org_name: l.org, provider_category: l.category, has_rated: rated.has(l.id), proof_status: mockProofSummary(l.id).status, proof_count: mockProofSummary(l.id).count }))
   return wait(rows)
 }
