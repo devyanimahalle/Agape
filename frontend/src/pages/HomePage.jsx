@@ -41,7 +41,7 @@ export default function HomePage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link to="/ngo" className={`${btn} bg-ink text-canvas hover:bg-toast`}>Find food near you</Link>
-                <Link to="/login" className={`${btn} bg-canvas text-ink hover:bg-panel`}>Sign in</Link>
+                <Link to="/select-role" className={`${btn} bg-canvas text-ink hover:bg-panel`}>Sign in</Link>
                 <a href="#how" className={`${btn} underline underline-offset-4`}>How it works</a>
               </div>
             </div>

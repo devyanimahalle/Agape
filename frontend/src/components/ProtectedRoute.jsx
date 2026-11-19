@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth, ROLE_LABEL } from '../context/AuthContext'
+import { loginPath, selectRolePath } from '../lib/routes'
 import Page from './Page'
 import LoadingState from './ui/LoadingState'
 
@@ -15,7 +16,7 @@ export default function ProtectedRoute({ roles, children }) {
   if (!user) {
     return (
       <Page title="Sign in required" subtitle="You need to be signed in to view this page." width="max-w-3xl">
-        <Link to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} className={`${linkCls} bg-brand-bright text-ink hover:bg-brand`}>
+        <Link to={roles?.length === 1 ? loginPath(roles[0], loc.pathname + loc.search) : selectRolePath(loc.pathname + loc.search)} className={`${linkCls} bg-brand-bright text-ink hover:bg-brand`}>
           Sign in
         </Link>
       </Page>

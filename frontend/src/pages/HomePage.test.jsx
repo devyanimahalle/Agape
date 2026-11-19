@@ -10,7 +10,7 @@ describe('HomePage', () => {
     setup()
     expect(screen.getByRole('heading', { level: 1, name: 'AGAPE' })).toBeInTheDocument()
     expect(screen.getByText('Every MEAL Matters')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/select-role')
   })
 
   it('keeps entry animation purely presentational (content always in the DOM)', () => {

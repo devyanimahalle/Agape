@@ -11,6 +11,9 @@ import ProtectedRoute from './components/ProtectedRoute'
 import VerificationGate from './components/VerificationGate'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import RoleSelectPage from './pages/RoleSelectPage'
+import PublicOnly from './components/PublicOnly'
 import AccountPage from './pages/AccountPage'
 
 function NotFound() {
@@ -30,7 +33,9 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<PublicOnly><HomePage /></PublicOnly>} />
+          <Route path="/select-role" element={<PublicOnly><RoleSelectPage /></PublicOnly>} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           <Route path="/provider" element={<ProtectedRoute roles={['provider']}><ProviderVerificationPage /></ProtectedRoute>} />
