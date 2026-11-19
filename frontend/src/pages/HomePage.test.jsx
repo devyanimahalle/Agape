@@ -6,21 +6,26 @@ import HomePage from './HomePage'
 const setup = () => render(<MemoryRouter><HomePage /></MemoryRouter>)
 
 describe('HomePage', () => {
-  it('leads with the headline and the tagline badge', () => {
+  it('leads with AGAPE as the one h1, with the tagline badge right under it', () => {
     setup()
-    const h1 = screen.getByRole('heading', { level: 1, name: 'Surplus food, delivered before it goes to waste.' })
-    expect(h1).toBeInTheDocument()
+    const h1 = screen.getByRole('heading', { level: 1, name: 'AGAPE' })
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByText('Every MEAL Matters')).toBeInTheDocument()
-    // the badge sits above the headline in the same column
-    expect(screen.getByText('Every MEAL Matters').compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const badge = screen.getByText('Every MEAL Matters')
+    expect(h1.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(h1.closest('section')).toBe(badge.closest('section'))
   })
 
-  it('no longer shows the giant AGAPE wordmark in the hero (it is in the navbar)', () => {
+  it('sizes the AGAPE mark moderately (capped at 8rem, not the old full-width block)', () => {
     setup()
-    expect(screen.queryByRole('heading', { name: 'AGAPE' })).not.toBeInTheDocument()
-    const hero = screen.getByRole('heading', { level: 1 }).closest('section')
-    expect(within(hero).queryByText('AGAPE')).not.toBeInTheDocument()
+    const h1 = screen.getByRole('heading', { level: 1, name: 'AGAPE' })
+    expect(h1.className).toContain('text-[clamp(4.5rem,10vw,8rem)]')
+    expect(h1.className).not.toMatch(/31vw|21rem/)
+  })
+
+  it('has dropped the surplus-food headline from the hero', () => {
+    setup()
+    expect(screen.queryByText('Surplus food, delivered before it goes to waste.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /delivered before it goes to waste/i })).not.toBeInTheDocument()
   })
 
   it('uses the Option A copy in the hero', () => {
@@ -85,9 +90,39 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument()
   })
 
-  it('still links the NGO role card to the food board', () => {
+  it('gives each How it works step a decorative line icon beside its title', () => {
     setup()
-    expect(screen.getByRole('link', { name: 'Open food board' })).toHaveAttribute('href', '/ngo')
+    const how = document.getElementById('how')
+    const steps = [...how.querySelectorAll('ol > li')]
+    expect(steps).toHaveLength(3)
+    for (const li of steps) {
+      const svg = li.querySelector('svg')
+      expect(svg).toBeInTheDocument()
+      expect(svg).toHaveAttribute('aria-hidden', 'true')
+      expect(svg).toHaveAttribute('stroke', 'currentColor')
+      expect(li.querySelector('.icon-tile')).toHaveClass('bg-ink', 'text-brand-bright')
+    }
+    expect(within(steps[0]).getByRole('heading', { name: 'Donors list surplus food' })).toBeInTheDocument()
+    expect(within(steps[1]).getByRole('heading', { name: 'Verified NGOs reserve' })).toBeInTheDocument()
+    expect(within(steps[2]).getByRole('heading', { name: 'Pickup is confirmed' })).toBeInTheDocument()
+  })
+
+  it('uses a different icon for each step and each role', () => {
+    setup()
+    const paths = (root) => [...root.querySelectorAll('svg')].map((s) => s.innerHTML)
+    const stepIcons = paths(document.getElementById('how'))
+    expect(new Set(stepIcons).size).toBe(3)
+    const roleIcons = paths(document.getElementById('roles').closest('section'))
+    expect(roleIcons).toHaveLength(3)
+    expect(new Set(roleIcons).size).toBe(3)
+  })
+
+  it('icons are flat: no shadows, only theme colour classes', () => {
+    setup()
+    for (const tile of document.querySelectorAll('.icon-tile')) {
+      expect(tile.className).not.toMatch(/shadow|#[0-9a-f]{3,6}/i)
+      expect(tile.className).toMatch(/group-hover:/)
+    }
   })
 
   it('states the honest-claims copy', () => {
@@ -100,13 +135,34 @@ describe('HomePage', () => {
     expect(document.body.textContent).not.toMatch(/FSSAI[- ]verified|FSSAI[- ]certified/i)
   })
 
-  it('previews all three roles and links each one to its area', () => {
+  it('previews NGO, Donor and Admin as cards with an icon each', () => {
     setup()
-    for (const name of ['NGO', 'Donor', 'Admin']) {
-      expect(screen.getByRole('heading', { name })).toBeInTheDocument()
+    const section = document.getElementById('roles').closest('section')
+    const cards = within(section).getAllByRole('article')
+    expect(cards).toHaveLength(3)
+    expect(cards.map((c) => within(c).getByRole('heading').textContent)).toEqual(['NGO', 'Donor', 'Admin'])
+    for (const card of cards) {
+      expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     }
     expect(screen.queryByText('In development')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open donor area' })).toHaveAttribute('href', '/provider')
-    expect(screen.getByRole('link', { name: 'Open admin' })).toHaveAttribute('href', '/admin')
+  })
+
+  it('has no Open ... buttons or links in the Who it is for cards', () => {
+    setup()
+    const section = document.getElementById('roles').closest('section')
+    expect(within(section).queryAllByRole('link')).toHaveLength(0)
+    expect(within(section).queryAllByRole('button')).toHaveLength(0)
+    for (const label of ['Open food board', 'Open donor area', 'Open admin']) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument()
+    }
+  })
+
+  it('keeps the role cards balanced: same structure, hover lift, no extra controls', () => {
+    setup()
+    const section = document.getElementById('roles').closest('section')
+    for (const card of within(section).getAllByRole('article')) {
+      expect(card).toHaveClass('card-lift', 'group')
+      expect(card.children).toHaveLength(3) // icon tile, name, description
+    }
   })
 })

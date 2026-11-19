@@ -34,7 +34,7 @@ beforeEach(() => localStorage.clear())
 describe('signed-out visitor', () => {
   it('sees the landing page with Impact and a Sign in link to the role selector', () => {
     renderAt('/')
-    expect(screen.getByRole('heading', { level: 1, name: 'Surplus food, delivered before it goes to waste.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'AGAPE' })).toBeInTheDocument()
     expect(navLinks()).toEqual([['Impact', '/impact']])
     const signIn = within(screen.getAllByRole('banner')[0]).getByRole('link', { name: 'Sign in' })
     expect(signIn).toHaveAttribute('href', '/select-role')
@@ -61,7 +61,7 @@ describe('signed-in users never see the public landing page', () => {
   ])('%s opening / is sent to their home', async (role, marker) => {
     signInAs(role)
     renderAt('/')
-    expect(screen.queryByRole('heading', { level: 1, name: 'Surplus food, delivered before it goes to waste.' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'AGAPE' })).not.toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: marker })).toBeInTheDocument()
   })
 
@@ -86,7 +86,7 @@ describe('signed-in users never see the public landing page', () => {
     renderAt('/ngo')
     await userEvent.click(screen.getByRole('button', { name: 'Profile menu' }))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Surplus food, delivered before it goes to waste.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'AGAPE' })).toBeInTheDocument()
     expect(localStorage.getItem('agape_mock_signed_in')).toBeNull()
   })
 })

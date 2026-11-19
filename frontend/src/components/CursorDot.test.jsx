@@ -178,7 +178,7 @@ describe('hero pickup visual styles', () => {
   it('animates the stages and the window bar, with a static fallback under reduced motion', () => {
     expect(CSS).toMatch(/\.pickup-stage \{[^}]*animation: agape-stage 9s linear infinite/)
     expect(CSS).toMatch(/\.pickup-fill \{[^}]*animation: agape-window 9s linear infinite/)
-    const reduced = CSS.slice(CSS.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+    const reduced = CSS.slice(CSS.indexOf('@keyframes agape-stage'))
     expect(reduced).toMatch(/\.pickup-stage, \.pickup-fill \{ animation: none; \}/)
     expect(reduced).toMatch(/\.pickup-stage:first-child \{ background: var\(--color-brand-bright\)/)
   })
@@ -189,5 +189,15 @@ describe('hero pickup visual styles', () => {
     expect(frames).toMatch(/var\(--color-brand-bright\)/)
     expect(frames).toMatch(/var\(--color-toast\)/)
     expect(frames).not.toMatch(/#[0-9a-f]{3,6}/i)
+  })
+})
+
+describe('landing icon tiles styles', () => {
+  it('swap colour and pop on card hover, and stay still under reduced motion', () => {
+    expect(CSS).toMatch(/\.icon-tile \{ transition: background-color 0\.2s, color 0\.2s, scale 0\.2s/)
+    expect(CSS).toMatch(/\.group:hover \.icon-tile \{ scale: 1\.06; \}/)
+    const reduced = CSS.slice(CSS.indexOf('.icon-tile {'))
+    expect(reduced).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.icon-tile \{ transition: none; \}/)
+    expect(reduced).toMatch(/\.group:hover \.icon-tile \{ scale: none; \}/)
   })
 })
