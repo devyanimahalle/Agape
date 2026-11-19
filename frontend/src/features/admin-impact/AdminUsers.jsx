@@ -246,7 +246,7 @@ export default function AdminUsers() {
       >
         <p className="text-sm leading-relaxed text-muted">
           {confirm?.kind === 'reset'
-            ? `This deletes all ${accountCount} donor and NGO accounts with their verification requests, listings, proofs and uploaded documents. Admin accounts are kept. It cannot be undone. Run the demo seed afterwards to restore the demo donor and NGO.`
+            ? `This deletes all ${accountCount} donor and NGO accounts with their verification requests, listings, proofs and uploaded documents. Admin accounts are kept. It cannot be undone. Register and verify new accounts afterwards.`
             : 'This deletes the account with its verification requests, listings, proofs and uploaded documents. It cannot be undone.'}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">

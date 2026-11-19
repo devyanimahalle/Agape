@@ -122,17 +122,13 @@ uvicorn app.main:app --reload
 cd frontend
 VITE_USE_MOCKS=false npm run dev      # PowerShell: $env:VITE_USE_MOCKS='false'; npm run dev
 ```
-Demo logins (created by `python -m app.db.seed`; demo data only):
+Demo login (created by `python -m app.db.seed`; demo data only):
 
 | Role | Email | Password | Lands on |
 |---|---|---|---|
-| NGO (approved, saved location in Delhi) | `ngo@agape.demo` | `Ngo@12345` | `/ngo` |
-| Donor / provider (restaurant, approved) | `provider@agape.demo` | `Provider@123` | `/provider` |
 | Admin | `admin@agape.demo` | `Admin@123` | `/admin` |
 
-The seed also adds three open listings near the NGO (2 to 8 km away). Re-running it leaves existing accounts exactly as
-they are (passwords, approvals and deactivations survive) and moves unclaimed demo listings' windows forward, so run it
-again before a demo if the listings have expired. Set `DATABASE_URL`
+The seed adds nothing else: no NGOs, donors, listings or requests. Re-running it never touches an existing admin. Set `DATABASE_URL`
 to use PostgreSQL instead; set `AUTO_CREATE_TABLES=0` to stop the API creating missing tables at startup.
 Quick API check: `POST /api/v1/auth/login`, then `GET /api/v1/auth/me` and `GET /api/v1/board` with
 `Authorization: Bearer <access_token>` (the board route is `/api/v1/board`).
@@ -162,8 +158,8 @@ Member C's branch is the verification module (not donor listing screens). `backe
 
 ## Donor listings, the demo seed and account reset
 - **Listings page:** `features/provider-listings` is `/provider/listings` (donor only, behind `VerificationGate`), linked from the header and from `/provider`. It uses `GET /listings/mine`, `POST /listings` and `GET /listings/available`: below the donor's own listings, an "Open on the platform" section shows what other verified donors have listed (the same open listings an NGO sees on the board), so the demo donor can inspect the platform. The server computes `est_meals` and `est_kg`; the page always labels them as estimates.
-- **Seed (`backend/app/db/seed.py`):** creates the three core accounts already verified (`provider@agape.demo` / `Provider@123`, `ngo@agape.demo` / `Ngo@12345`, `admin@agape.demo` / `Admin@123`) and three open demo listings, and NOTHING else: no verification requests, proofs, completed pickups or documents, so the admin queues start empty. Accounts are created only when missing and are never modified afterwards, so a password, approval or deactivation an admin changed survives restarts and re-runs (this also means approving a fresh account is never undone by the seed). Only the demo donor's own unclaimed listings get their collection windows moved forward.
-- **Admin account cleanup:** `DELETE /api/v1/admin/users/{id}` deletes one donor or NGO with their verification requests, listings, proofs, ratings and uploaded files (listings an NGO had reserved on someone else's behalf are released, not deleted); it refuses your own account and other admins. `POST /api/v1/admin/users/reset` deletes every donor and NGO account the same way and keeps admins. `/admin/users` has a "Reset demo accounts" button and a per-row Delete, each behind a confirmation dialog. After a reset, run `python -m app.db.seed` to bring the demo donor and NGO back.
+- **Seed (`backend/app/db/seed.py`):** creates ONE account, the admin (`admin@agape.demo` / `Admin@123`), and nothing else: no NGO or donor accounts, no listings, no verification requests, proofs or documents. A fresh database therefore starts empty and NGOs and donors register at `/register`, submit verification, and are approved live. The admin is created only when missing and never modified afterwards, so a changed password or deactivation survives restarts and re-runs.
+- **Admin account cleanup:** `DELETE /api/v1/admin/users/{id}` deletes one donor or NGO with their verification requests, listings, proofs, ratings and uploaded files (listings an NGO had reserved on someone else's behalf are released, not deleted); it refuses your own account and other admins. `POST /api/v1/admin/users/reset` deletes every donor and NGO account the same way and keeps admins. `/admin/users` has a "Reset demo accounts" button and a per-row Delete, each behind a confirmation dialog. After a reset only the admin account(s) remain, which is the same state as a fresh seed.
 - **Timestamps:** Role D's board and reservation schemas now serialise datetimes as UTC even on SQLite (which returns them naive). Before this, a browser read them as local time, so in timezones ahead of UTC (India) the board showed wrong countdowns and hid listings hours early.
 - **Known gaps:** donors cannot edit or cancel a listing from the UI yet; the form takes coordinates by hand or from the browser location (no map picker); passport upload (the PAN + Aadhaar alternative) is supported by the backend but not offered in the UI.
 

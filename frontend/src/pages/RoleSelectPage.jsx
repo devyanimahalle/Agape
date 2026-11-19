@@ -14,7 +14,7 @@ export default function RoleSelectPage() {
   const next = safeNext(params.get('next'))
 
   return (
-    <Page compact title="Sign in" subtitle="Choose how you use Agape. Each role has its own sign-in and its own home.">
+    <Page compact title="Sign in" subtitle="Choose how you use Agape.">
       <ul className="grid gap-3 md:grid-cols-3">
         {PORTAL_ROLES.map((key) => {
           const p = PORTALS[key]

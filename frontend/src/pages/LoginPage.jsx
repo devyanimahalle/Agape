@@ -97,11 +97,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <aside aria-label="Demo account" className="mt-6 rounded-[6px] bg-panel px-4 py-3 text-sm">
-            <p className="text-xs uppercase tracking-[1px] text-muted">Demo account</p>
-            <p className="mt-1 break-all">{portal.demo.email}</p>
-            <p>{portal.demo.password}</p>
-          </aside>
+          {portal.demo && (
+            <aside aria-label="Demo account" className="mt-6 rounded-[6px] bg-panel px-4 py-3 text-sm">
+              <p className="text-xs uppercase tracking-[1px] text-muted">Demo account</p>
+              <p className="mt-1 break-all">{portal.demo.email}</p>
+              <p>{portal.demo.password}</p>
+            </aside>
+          )}
 
           {portal.register ? (
             <p className="mt-6 text-sm text-muted">

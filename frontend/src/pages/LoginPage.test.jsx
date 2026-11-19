@@ -82,8 +82,8 @@ describe('role portals', () => {
     renderLogin('/login?role=ngo')
     expect(screen.getByRole('heading', { level: 1, name: 'NGO sign in' })).toBeInTheDocument()
     expect(screen.getByText('Sign in to see surplus food near you and reserve it.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Demo account')).toHaveTextContent('ngo@agape.demo')
-    expect(screen.getByLabelText('Demo account')).toHaveTextContent('Ngo@12345')
+    expect(screen.queryByLabelText('Demo account')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/ngo@agape\.demo|Ngo@12345/)
     expect(screen.getByRole('link', { name: 'Register your NGO' })).toHaveAttribute('href', '/register?role=ngo')
     expect(screen.getByText('NGO food board & reservations')).toBeInTheDocument()
   })
@@ -92,7 +92,8 @@ describe('role portals', () => {
     renderLogin('/login?role=provider')
     expect(screen.getByRole('heading', { level: 1, name: 'Donor sign in' })).toBeInTheDocument()
     expect(screen.getByText('Sign in to list surplus food and track your verification.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Demo account')).toHaveTextContent('provider@agape.demo')
+    expect(screen.queryByLabelText('Demo account')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/provider@agape\.demo|Provider@123/)
     expect(screen.getByRole('link', { name: 'Register as a donor' })).toHaveAttribute('href', '/register?role=provider')
     expect(screen.getByText('Donor surplus listings')).toBeInTheDocument()
   })
@@ -104,6 +105,17 @@ describe('role portals', () => {
     expect(screen.getByText(/no public sign-up for admin accounts/i)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /register/i })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Demo account')).toHaveTextContent('admin@agape.demo')
+    expect(screen.getByLabelText('Demo account')).toHaveTextContent('Admin@123')
+  })
+
+  it('only the admin portal shows a demo account (NGOs and donors register live)', () => {
+    for (const role of ['ngo', 'provider']) {
+      const { unmount } = renderLogin(`/login?role=${role}`)
+      expect(screen.queryByLabelText('Demo account')).not.toBeInTheDocument()
+      unmount()
+    }
+    renderLogin('/login?role=admin')
+    expect(screen.getByLabelText('Demo account')).toBeInTheDocument()
   })
 
   it('every portal has a Switch role link back to the selector', () => {

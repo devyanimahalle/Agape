@@ -85,6 +85,14 @@ class TestResetAccounts:
         for model in (Listing, Proof, Rating, Document, VerificationRequest, ProviderProfile, NgoProfile):
             assert _count(db_session, model) == 0, model.__name__
 
+    def test_keeps_every_admin_when_there_are_several(self, admin_client, db_session, seed_admin_data):
+        db_session.add(User(id=11, email="admin2@test.com", password_hash="x", role="admin", name="Second Admin", is_active=True))
+        db_session.commit()
+        r = admin_client.post("/api/v1/admin/users/reset")
+        assert r.json() == {"deleted": 4}
+        db_session.expire_all()
+        assert sorted(u.id for u in db_session.scalars(select(User)).all()) == [10, 11]
+
     def test_reset_with_nothing_to_delete_is_fine(self, admin_client):
         r = admin_client.post("/api/v1/admin/users/reset")
         assert r.status_code == 200

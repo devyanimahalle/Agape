@@ -40,19 +40,19 @@ Setup
 - [ ] Frontend: `VITE_USE_MOCKS=false npm run dev` (or set it in `frontend/.env` and restart)
 - [ ] Backend tests: Role B's suite and Role D's `pytest tests/reservations` (needs PostgreSQL via `TEST_DATABASE_URL`)
 
-Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/`lng`, an approved restaurant donor and three open listings near the NGO, with no verification requests or proofs. Existing accounts are never overwritten, so approvals survive restarts.
-- [ ] Demo logins: NGO `ngo@agape.demo` / `Ngo@12345`, Donor `provider@agape.demo` / `Provider@123`, Admin `admin@agape.demo` / `Admin@123`.
+Seed data: `python -m app.db.seed` creates ONLY the admin (`admin@agape.demo` / `Admin@123`): no NGOs, donors, listings, verification requests or proofs, so the platform starts empty and everything is registered and verified live. An existing admin is never overwritten.
+- [ ] Demo login: only the Admin, `admin@agape.demo` / `Admin@123`. There are no seeded NGO or donor accounts: register them live at `/register?role=ngo` and `/register?role=provider`, then approve them at `/admin/verifications`.
 - [ ] To test the unapproved path, register a second NGO through `POST /api/v1/auth/register` (it starts as `pending`).
 
 **Walkthrough**
 - [ ] No token: `/ngo` shows "Sign in required" with a **Sign in** link to the NGO portal; the header shows **Sign in** (to the role selector).
 - [ ] Wrong password at `/login` shows "Email or password is incorrect."
-- [ ] Sign in as the approved NGO (`ngo@agape.demo`): redirected to `/ngo`; `localStorage['access_token']` is set; **Account** shows name, email, role and "Admin-verified".
+- [ ] Register an NGO, submit its onboarding, approve it as admin, then sign in as it: redirected to `/ngo`; `localStorage['access_token']` is set; **Account** shows name, email, role and "Admin-verified".
 - [ ] `/ngo` loads the real board nearest-first using the NGO's saved location (`/auth/me` `profile.lat/lng`).
 - [ ] Reserve a listing: succeeds once; reserving the same listing again (second browser or user) returns the "already taken" message.
 - [ ] Complete pickup with a real PDF/JPG/PNG, then rate the provider (restaurant/caterer providers only).
 - [ ] Unapproved NGO: `/ngo` shows the "awaiting approval" message (`403 NOT_VERIFIED`) and **Account** shows "Awaiting admin review".
-- [ ] Sign in as a Donor (`provider@agape.demo`): lands on `/provider`; `/ngo` shows "Not available for your role". Admin: `/account` shows "Not applicable for admin accounts."
+- [ ] Sign in as a registered donor: lands on `/provider`; `/ngo` shows "Not available for your role". Admin: `/account` shows "Not applicable for admin accounts."
 - [ ] **Sign out** (profile menu) clears the token, lands on `/` and returns guarded routes to "Sign in required".
 - [ ] Stop the backend: pages show a network error message, not a blank screen (the error boundary catches crashes).
 
@@ -82,17 +82,17 @@ Seed data: `python -m app.db.seed` creates an admin, an approved NGO with `lat`/
 - [ ] Demo mode, **Donor**: the header shows **Listings** and **Verification**; `/provider` has an "Open listings" card. `/provider/listings` shows the "Surplus listings" band, a "New listing" form on the left, "Your listings" on the right (two samples, each "about N (estimate)") and, below, "Open on the platform" with two other donors' listings.
 - [ ] Press **List this food** with the form empty: inline errors for the name, food type, quantity and coordinates; nothing is sent. A latitude of `120` is refused.
 - [ ] Fill in a name, food type, quantity (try `portions` and `kg`), keep the prefilled window and enter `28.6139` / `77.2090`: the listing appears at the top of "Your listings" as Available, with a green notice "about N meals (an estimate)". **Use my current location** fills the coordinates.
-- [ ] Live stack, `provider@agape.demo` (approved out of the box): the seeded listings load under "Your listings"; listings from other verified donors show under "Open on the platform"; a listing created by any verified donor appears on the verified NGO board (`/ngo`, signed in as `ngo@agape.demo`) and in the demo donor's "Open on the platform".
+- [ ] Live stack, an approved donor: the listings it created load under "Your listings"; listings from other verified donors show under "Open on the platform"; a listing created by any verified donor appears on a verified NGO's board (`/ngo`) and in other donors' "Open on the platform". On a fresh database all of these start empty.
 - [ ] Live stack, gating: a donor who is not approved (new account, pending or rejected, any category) sees "Verification needed" with a link to `/provider` and no form; `POST /api/v1/listings` and `GET /api/v1/listings/mine` return 403 `NOT_VERIFIED`.
 
 ## Admin: clean slate before a live demo (`/admin/users`)
 - [ ] Each donor and NGO row has a **Delete** button (admin rows and your own row have none). It asks for confirmation, then removes the account with its requests, listings, proofs and files.
-- [ ] **Reset demo accounts** (top right) asks for confirmation and deletes every donor and NGO account, keeping admins; the verification and proof queues are emptied with them. Run `python -m app.db.seed` afterwards to bring back the demo donor and NGO (admins and anything else are untouched), then register and verify new accounts from scratch.
+- [ ] **Reset demo accounts** (top right) asks for confirmation and deletes every donor and NGO account with all their data (requests, listings, proofs, ratings, files), keeping the admin account(s). That is the same empty state as a fresh seed, so register and verify new accounts from scratch.
 - [ ] On a phone-width screen the users list is stacked cards with the same Delete button.
 
 ## Navigation and sign-in flow
 - [ ] **Role selector and portals** (`/select-role`, `/login?role=...`): NGO, Donor and Admin portals have their own heading, subtitle, demo-account tile and "Switch role" link; NGO and Donor have a registration link, Admin says there is no public sign-up. Check at desktop and 390px: no horizontal scroll.
-- [ ] **Wrong portal:** sign in as `provider@agape.demo` through the NGO portal: you land on `/provider` and a strip says "You chose NGO, but this account is a Donor account, so we opened your Donor area."
+- [ ] **Wrong portal:** sign in as a registered donor through the NGO portal: you land on `/provider` and a strip says "You chose NGO, but this account is a Donor account, so we opened your Donor area."
 - [ ] **Signed-in users skip the landing page:** while signed in, typing `/` in the address bar, pressing back to it, or clicking the AGAPE logo opens your role home; `/select-role` and `/login` do too. After **Sign out** the landing page is reachable again.
 - [ ] **Profile menu:** the round button at the top right (your initials) opens a menu with Account and Sign out only; it closes on `Escape`, on an outside click and after choosing an item. There is no separate Account link or Sign out button in the bar.
 - [ ] **Strict nav per role:** NGO: Food board, My reservations, Onboarding, Impact. Donor: Verification, Listings, Impact. Admin: Dashboard, Verifications, Proofs, Users, Impact. Signed out: Impact and Sign in.

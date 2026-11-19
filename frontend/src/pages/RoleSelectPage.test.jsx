@@ -6,9 +6,11 @@ import RoleSelectPage from './RoleSelectPage'
 const setup = (path = '/select-role') => render(<MemoryRouter initialEntries={[path]}><RoleSelectPage /></MemoryRouter>)
 
 describe('RoleSelectPage', () => {
-  it('has an orange-band title and three role cards', () => {
+  it('has an orange-band title, the short subtitle and three role cards', () => {
     setup()
     expect(screen.getByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByText('Choose how you use Agape.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/its own sign-in and its own home/)
     for (const name of ['NGO', 'Donor / Provider', 'Admin']) {
       expect(screen.getByRole('article', { name })).toBeInTheDocument()
     }
