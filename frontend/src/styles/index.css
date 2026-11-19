@@ -14,6 +14,12 @@
   --color-plum-mid: #a54d85;
   --color-toast: #3b404b;
 
+  /* Warm orange brand accent. Dark ink text sits ON orange surfaces (>=4.5:1 on #ea580c, ~6.8:1 on #f97316).
+     Never put white text on orange. As TEXT on cream, use brand-deep, or brand only at display size (>=24px). */
+  --color-brand: #ea580c;
+  --color-brand-bright: #f97316;
+  --color-brand-deep: #9a3412;
+
   /* Status tints: dark text on pale backgrounds (AA). Never use yellow as text. */
   --color-ok-bg: #dff0e3;
   --color-ok-ink: #14532d;
@@ -32,4 +38,14 @@
 @layer base {
   body { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; }
   h1, h2, h3 { font-family: var(--font-display); text-transform: uppercase; font-weight: 400; }
+}
+
+/* Landing entry animation: a short fade/rise. Elements are fully visible without it (no opacity:0 default). */
+@keyframes agape-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.agape-rise { animation: agape-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+@media (prefers-reduced-motion: reduce) {
+  .agape-rise { animation: none; }
 }

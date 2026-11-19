@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import AccountPage from './pages/AccountPage'
+import RoleHomePage from './pages/RoleHomePage'
 
 function NotFound() {
   return (
@@ -27,6 +28,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+          <Route path="/provider" element={<ProtectedRoute roles={['provider']}><RoleHomePage role="provider" /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute roles={['admin']}><RoleHomePage role="admin" /></ProtectedRoute>} />
           <Route path="/ngo" element={ngoOnly(<NgoBoardPage />)} />
           <Route path="/ngo/reservations" element={ngoOnly(<NgoReservationsPage />)} />
           <Route path="*" element={<NotFound />} />

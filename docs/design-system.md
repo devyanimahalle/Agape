@@ -13,12 +13,20 @@ Tokens live in `frontend/src/styles/index.css` (`@theme`).
 | `muted` | `#5b564b` | Secondary text (darkened from source for AA contrast) |
 | `line` | `#a89f91` | All borders and inputs, `1px solid` |
 | `sage` | `#889387` | Hero / section surface |
-| `primary` | `#ffd600` | Agape primary yellow, main CTAs and key highlights |
+| `primary` | `#ffd600` | Agape primary yellow, secondary CTAs and key highlights |
+| `brand-bright` | `#f97316` | Warm orange brand surface (landing hero, login brand panel, primary `brand` button, header underline). Dark `ink` text on it is about 6.8:1 |
+| `brand` | `#ea580c` | Deeper orange for hover states and display-size accents. Dark `ink` text on it is about 4.5:1 |
+| `brand-deep` | `#9a3412` | Orange used as TEXT on cream or white (about 7:1) |
 | `highlight` | `#f4f46e` | Soft banner / marquee accent (Stacked's lime-yellow) |
 | `plum` / `plum-mid` | `#3d1a39` / `#a54d85` | Dark variant, secondary accent |
 | `toast` | `#3b404b` | Toast / notification surface |
 
-Rules: yellow is a *surface* behind black text, never text on light backgrounds. Reserve `primary` for CTAs.
+Rules: yellow and orange are *surfaces* behind dark `ink` text. Never use white text on orange (about 3.6:1), and never use yellow as text on light backgrounds. Orange text on cream is allowed only at display size (24px and up) with `brand`, or at any size with `brand-deep`.
+
+## Brand moments
+- **Wordmark:** `AGAPE` in Anton, uppercase, very large on the landing hero (`text-[5.5rem]`, `md:text-[11rem]`), always paired with the tagline **"Agape : Every Meal Matters"** in a solid `ink` pill with cream text.
+- **Entry animation:** `.agape-rise` in `src/styles/index.css` (0.7s fade and 14px rise, staggered with the `--d` delay variable). Content is fully visible without it, and `prefers-reduced-motion: reduce` disables it.
+- **Login:** a split layout. The left panel is `brand-bright` with the wordmark, tagline and three feature blurbs (NGO food board and reservations; donor surplus listings and admin verification, both marked "In development" because those screens are not built yet). The right panel holds the form and a `brand` submit button.
 
 ## Typography
 - Display (h1-h3): uppercase, no rounded treatment. Source uses FKScreamer (commercial), so we use **Anton** (Google Fonts, SIL OFL).

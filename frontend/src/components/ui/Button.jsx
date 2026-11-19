@@ -1,5 +1,6 @@
 const VARIANT = {
   primary: 'bg-primary text-ink hover:brightness-95', // yellow is a surface behind dark text, never text itself
+  brand: 'bg-brand-bright text-ink hover:bg-brand', // dark text on orange; never white
   dark: 'bg-ink text-panel hover:bg-toast',
   ghost: 'bg-transparent text-ink hover:underline',
 }

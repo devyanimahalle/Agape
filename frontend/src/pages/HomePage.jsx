@@ -23,15 +23,24 @@ const ROLES = [
 export default function HomePage() {
   return (
     <main>
-      <section className="bg-sage">
-        <div className="mx-auto max-w-5xl px-8 py-16">
-          <h1 className="text-5xl md:text-6xl">Surplus food, collected in time</h1>
-          <p className="mt-4 max-w-2xl text-lg text-ink">
-            Agape connects food donors with admin-verified NGOs so good food gets collected before its window ends.
+      <section className="bg-brand-bright text-ink">
+        <div className="mx-auto max-w-5xl px-8 py-16 md:py-24">
+          <h1 className="agape-rise font-display text-[5.5rem] uppercase leading-[0.9] md:text-[11rem]">AGAPE</h1>
+          <p
+            className="agape-rise mt-6 inline-block rounded-card bg-ink px-4 py-2 text-xl font-bold text-canvas md:text-2xl"
+            style={{ '--d': '150ms' }}
+          >
+            Agape : Every Meal Matters
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/ngo" className="rounded-card border border-line bg-primary px-5 py-2 text-sm font-bold uppercase tracking-[1px] text-ink">
+          <p className="agape-rise mt-6 max-w-2xl text-lg" style={{ '--d': '300ms' }}>
+            Surplus food, collected in time. Agape connects food donors with admin-verified NGOs so good food gets collected before its window ends.
+          </p>
+          <div className="agape-rise mt-8 flex flex-wrap gap-3" style={{ '--d': '450ms' }}>
+            <Link to="/ngo" className="rounded-card border border-ink bg-primary px-5 py-2 text-sm font-bold uppercase tracking-[1px] text-ink">
               Find food near you
+            </Link>
+            <Link to="/login" className="rounded-card border border-ink bg-ink px-5 py-2 text-sm font-bold uppercase tracking-[1px] text-canvas">
+              Sign in
             </Link>
             <a href="#how" className="rounded-card border border-ink px-5 py-2 text-sm font-bold uppercase tracking-[1px] text-ink">
               How it works

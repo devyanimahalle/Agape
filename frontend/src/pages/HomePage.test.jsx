@@ -6,6 +6,18 @@ import HomePage from './HomePage'
 const setup = () => render(<MemoryRouter><HomePage /></MemoryRouter>)
 
 describe('HomePage', () => {
+  it('leads with the AGAPE title and the tagline', () => {
+    setup()
+    expect(screen.getByRole('heading', { level: 1, name: 'AGAPE' })).toBeInTheDocument()
+    expect(screen.getByText('Agape : Every Meal Matters')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+  })
+
+  it('keeps entry animation purely presentational (content always in the DOM)', () => {
+    setup()
+    expect(screen.getByText('Agape : Every Meal Matters')).toBeVisible()
+  })
+
   it('links the main CTAs to /ngo', () => {
     setup()
     expect(screen.getByRole('link', { name: 'Find food near you' })).toHaveAttribute('href', '/ngo')

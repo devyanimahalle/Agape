@@ -26,7 +26,7 @@ describe('app shell', () => {
 
   it('renders the home page inside the layout', () => {
     renderAt('/')
-    expect(screen.getByRole('heading', { level: 1, name: /Surplus food, collected in time/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'AGAPE' })).toBeInTheDocument()
     expect(screen.getByLabelText('Demo role')).toBeInTheDocument()
   })
 
@@ -34,6 +34,16 @@ describe('app shell', () => {
     renderAt('/account')
     expect(screen.getByRole('heading', { level: 1, name: 'Account' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account')
+  })
+
+  it('gives donors /provider and admins /admin, and blocks the wrong role', async () => {
+    renderAt('/provider')
+    expect(screen.getByText(/Not available for your role/)).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Demo role'), 'provider')
+    expect(screen.getByRole('heading', { name: 'Donor home' })).toBeInTheDocument()
+    expect(screen.getByText('In development')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Demo role'), 'admin')
+    expect(screen.getByText(/Not available for your role/)).toBeInTheDocument()
   })
 
   it('shows /ngo for the default NGO demo user', () => {

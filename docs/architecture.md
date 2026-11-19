@@ -8,10 +8,11 @@ frontend/src/
   main.jsx                 entry: BrowserRouter > AuthProvider > App
   App.jsx                  route table, Layout, ErrorBoundary (Role A owns)
   lib/api.js               shared api() fetch wrapper, token helpers, ApiError
+  lib/routes.js            homeForRole(), safeNext() for post-login redirects
   context/AuthContext.jsx  session state, demo role switcher (mock mode)
   components/              shell: Layout, ProtectedRoute, ErrorBoundary
   components/ui/           kit: Button Card Badge StatusPill EmptyState LoadingState Modal
-  pages/                   top-level pages owned by Role A (HomePage, LoginPage, AccountPage)
+  pages/                   top-level pages owned by Role A (HomePage, LoginPage, AccountPage, RoleHomePage)
   features/<name>/         one folder per role's feature, exports pages from index.js
     ngo-reservations/      Role D (do not edit from the shell)
   styles/index.css         Tailwind @theme design tokens
@@ -24,11 +25,18 @@ docs/                      design-system.md, architecture.md, integration-guide.
 | Path | Page | Guard |
 |---|---|---|
 | `/` | `pages/HomePage` | public |
-| `/login` | `pages/LoginPage` | public |
+| `/login` | `pages/LoginPage` (brand panel + sign-in; supports `?next=`) | public |
 | `/account` | `pages/AccountPage` (session and verification status) | any signed-in role |
+| `/provider` | `pages/RoleHomePage` (donor home, "In development") | role `provider` |
+| `/admin` | `pages/RoleHomePage` (admin home, "In development") | role `admin` |
 | `/ngo` | `features/ngo-reservations` `NgoBoardPage` | role `ngo` |
 | `/ngo/reservations` | `NgoReservationsPage` | role `ngo` |
 | `*` | NotFound | public |
+
+## Sign-in flow and redirects
+1. A guarded route shown to a signed-out visitor links to `/login?next=<current path>`.
+2. After a successful login, `LoginPage` redirects to `?next=` when it is a safe same-site path (`lib/routes.js` `safeNext` rejects `//host`, `/\host`, absolute URLs and `/login`). Otherwise it redirects by role with `homeForRole`: `ngo` to `/ngo`, `provider` (alias `donor`) to `/provider`, `admin` to `/admin`, anything else to `/`.
+3. `/provider` and `/admin` are placeholders that say "In development" until the Donor and Admin workflows exist. They match the `landing` paths Role B's `/auth/login` returns.
 
 ## Auth and roles
 - Token key: `localStorage['access_token']` (read by `lib/api.js`).

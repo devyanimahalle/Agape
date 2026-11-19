@@ -14,13 +14,16 @@ vi.mock('../lib/api', () => ({
 import LoginPage from './LoginPage'
 import { AuthProvider } from '../context/AuthContext'
 
-const renderLogin = () =>
+const renderLogin = (path = '/login') =>
   render(
-    <MemoryRouter initialEntries={['/login']}>
+    <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/ngo" element={<p>NGO landing</p>} />
+          <Route path="/provider" element={<p>Provider landing</p>} />
+          <Route path="/admin" element={<p>Admin landing</p>} />
+          <Route path="/ngo/reservations" element={<p>Reservations landing</p>} />
           <Route path="/" element={<p>Home landing</p>} />
         </Routes>
       </AuthProvider>
@@ -54,14 +57,14 @@ describe('LoginPage (live backend)', () => {
     expect(h.setToken).toHaveBeenCalledWith('tok-1')
   })
 
-  it('sends non-NGO users to / (nested /auth/me shape)', async () => {
+  it('sends a donor (provider) to /provider (nested /auth/me shape)', async () => {
     h.api.mockImplementation(async (path) =>
       path === '/auth/login'
         ? { access_token: 'tok-2' }
         : { user: { id: 2, role: 'provider' }, profile: null, verification_status: 'pending' })
     renderLogin()
     await fillAndSubmit()
-    expect(await screen.findByText('Home landing')).toBeInTheDocument()
+    expect(await screen.findByText('Provider landing')).toBeInTheDocument()
   })
 
   it('still works if /auth/me returns a flat user (fallback)', async () => {
@@ -72,12 +75,46 @@ describe('LoginPage (live backend)', () => {
     expect(await screen.findByText('NGO landing')).toBeInTheDocument()
   })
 
-  it('sends a flat provider to / (fallback)', async () => {
+  it('sends a flat provider to /provider (fallback)', async () => {
     h.api.mockImplementation(async (path) =>
       path === '/auth/login' ? { access_token: 'tok-4' } : { id: '4', role: 'provider' })
     renderLogin()
     await fillAndSubmit()
-    expect(await screen.findByText('Home landing')).toBeInTheDocument()
+    expect(await screen.findByText('Provider landing')).toBeInTheDocument()
+  })
+
+  it('sends an admin to /admin', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login' ? { access_token: 't' } : { user: { id: 9, role: 'admin' }, profile: null, verification_status: null })
+    renderLogin()
+    await fillAndSubmit()
+    expect(await screen.findByText('Admin landing')).toBeInTheDocument()
+  })
+
+  it('honours a safe ?next= over the role home', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login' ? { access_token: 't' } : { user: { id: 1, role: 'ngo' } })
+    renderLogin('/login?next=%2Fngo%2Freservations')
+    expect(screen.getByText('Sign in to continue.')).toBeInTheDocument()
+    await fillAndSubmit()
+    expect(await screen.findByText('Reservations landing')).toBeInTheDocument()
+  })
+
+  it('ignores an unsafe ?next= (open redirect) and uses the role home', async () => {
+    h.api.mockImplementation(async (path) =>
+      path === '/auth/login' ? { access_token: 't' } : { user: { id: 1, role: 'ngo' } })
+    renderLogin('/login?next=%2F%2Fevil.example.com')
+    await fillAndSubmit()
+    expect(await screen.findByText('NGO landing')).toBeInTheDocument()
+  })
+
+  it('shows the Agape brand panel with honest feature copy', () => {
+    renderLogin()
+    expect(screen.getByText('Agape : Every Meal Matters')).toBeInTheDocument()
+    expect(screen.getByText('NGO food board & reservations')).toBeInTheDocument()
+    expect(screen.getByText('Donor surplus listings')).toBeInTheDocument()
+    expect(screen.getByText(/format check plus admin review/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/FSSAI[- ]verified|FSSAI[- ]certified/i)
   })
 
   it('shows an error and clears the token on bad credentials', async () => {
@@ -110,10 +147,10 @@ describe('LoginPage (mock mode)', () => {
     expect(h.api).not.toHaveBeenCalled()
   })
 
-  it('sends a demo donor to / and remembers the role', async () => {
+  it('sends a demo donor to /provider and remembers the role', async () => {
     renderLogin()
     await userEvent.click(screen.getByRole('button', { name: 'Continue as Donor' }))
-    expect(await screen.findByText('Home landing')).toBeInTheDocument()
+    expect(await screen.findByText('Provider landing')).toBeInTheDocument()
     expect(localStorage.getItem('agape_mock_role')).toBe('provider')
     expect(screen.queryByText('NGO landing')).not.toBeInTheDocument()
   })

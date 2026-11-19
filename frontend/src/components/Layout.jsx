@@ -7,7 +7,7 @@ export default function Layout() {
   const { user, mock, mockRole, setMockRole, logout } = useAuth()
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-line bg-panel">
+      <header className="border-b-4 border-brand-bright bg-panel">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-8 py-4">
           <Link to="/" className="font-display text-2xl uppercase">Agape</Link>
           <nav aria-label="Main" className="flex gap-1">
