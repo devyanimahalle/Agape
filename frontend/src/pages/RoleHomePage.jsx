@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Badge, Card } from '../components/ui'
+import PageHeader from '../components/PageHeader'
 
 const COPY = {
   provider: {
@@ -24,19 +25,21 @@ const COPY = {
 export default function RoleHomePage({ role }) {
   const c = COPY[role]
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-4xl">{c.title}</h1>
-      <Card className="mt-6">
-        <Badge tone="warn">In development</Badge>
-        <p className="mt-3">You are signed in. This area is not ready yet. What is planned:</p>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
-          {c.planned.map((t) => <li key={t}>{t}</li>)}
-        </ul>
-        <div className="mt-5 flex gap-4">
-          <Link to="/account" className="underline">View account</Link>
-          <Link to="/" className="underline">Back to home</Link>
-        </div>
-      </Card>
+    <main>
+      <PageHeader title={c.title}>You are signed in. This area is not ready yet.</PageHeader>
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-20">
+        <Card className="max-w-3xl p-7 md:p-10">
+          <Badge tone="warn">In development</Badge>
+          <p className="mt-5 text-lg">What is planned:</p>
+          <ul className="mt-4 space-y-3 leading-relaxed text-muted">
+            {c.planned.map((t) => <li key={t}>{t}</li>)}
+          </ul>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/account" className="press rounded-[6px] bg-ink px-6 py-3 text-sm font-bold uppercase tracking-[1px] text-canvas hover:bg-toast">View account</Link>
+            <Link to="/" className="press px-3 py-3 text-sm font-bold uppercase tracking-[1px] underline underline-offset-4">Back to home</Link>
+          </div>
+        </Card>
+      </div>
     </main>
   )
 }

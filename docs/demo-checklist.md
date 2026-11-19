@@ -14,7 +14,9 @@ Setup: `cp .env.example .env` (defaults to mock mode), then `npm run dev` and op
 **Walkthrough**
 - [ ] `/` landing page loads: "Surplus food, collected in time", the three steps, the "what we check, and what we don't claim" section, and role cards (Donor and Admin marked "In development").
 - [ ] Header shows a **Demo mode** badge and a role dropdown (Donor / NGO / Admin).
-- [ ] `/login` shows the form plus **Continue as NGO / Donor / Admin** buttons.
+- [ ] `/login` shows the form plus **Continue as NGO / Donor / Admin** buttons. After sign-in each role lands on its own home: NGO `/ngo`, Donor `/provider`, Admin `/admin` (unless a safe same-site `?next=` path is present, which wins).
+- [ ] **Continue as Donor** opens `/provider` ("Donor home", In development) and **Continue as Admin** opens `/admin` ("Admin home", In development). Each has links to `/account` and `/`.
+- [ ] `/login?next=/ngo/reservations` shows "Sign in to continue." and returns there after sign-in; `?next=//evil.com` is ignored and the role home is used.
 - [ ] **Continue as NGO** goes to `/ngo`: list of nearby listings, estimated meals labelled as estimates, List/Map toggle (map tiles and markers show).
 - [ ] Reserve a listing: a confirmation appears first; the card then moves to **My reservations** (`/ngo/reservations`).
 - [ ] Complete pickup needs at least one PDF/JPG/PNG proof (10 MB cap); try a wrong file type and see the error.
@@ -56,4 +58,4 @@ Seed data (an admin, one approved NGO with `lat`/`lng`, a provider, and an avail
 ## Known gaps to mention if asked
 - Donor and Admin screens (listing creation, NGO review) are not built in this frontend yet.
 - Role D's `ngo-reservations/api.js` still has its own request code instead of the shared `api()`.
-- `/provider` and `/admin` landing paths returned by `/auth/login` have no pages yet; the app redirects non-NGOs to `/`.
+- `/provider` (Donor) and `/admin` (Admin) are placeholder landing pages marked "In development" (`RoleHomePage`); they are role-gated and `/auth/login`'s `landing` values map to them. Real donor listing and admin review screens replace them later.
