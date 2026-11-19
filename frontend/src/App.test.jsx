@@ -26,7 +26,7 @@ describe('app shell', () => {
 
   it('renders the home page inside the layout', () => {
     renderAt('/')
-    expect(screen.getByRole('heading', { name: 'Agape' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /Surplus food, collected in time/ })).toBeInTheDocument()
     expect(screen.getByLabelText('Demo role')).toBeInTheDocument()
   })
 

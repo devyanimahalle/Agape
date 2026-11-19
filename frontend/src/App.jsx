@@ -4,21 +4,7 @@ import { NgoBoardPage, NgoReservationsPage } from './features/ngo-reservations'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
-
-function Home() {
-  return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-5xl">Agape</h1>
-      <p className="mt-2 text-muted">Food rescue, connected.</p>
-      <Link
-        to="/ngo"
-        className="mt-6 inline-block rounded-card border border-line bg-primary px-5 py-2 font-bold uppercase tracking-[1px]"
-      >
-        NGO food board
-      </Link>
-    </main>
-  )
-}
+import HomePage from './pages/HomePage'
 
 function NotFound() {
   return (
@@ -36,7 +22,7 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/ngo" element={ngoOnly(<NgoBoardPage />)} />
           <Route path="/ngo/reservations" element={ngoOnly(<NgoReservationsPage />)} />
           <Route path="*" element={<NotFound />} />

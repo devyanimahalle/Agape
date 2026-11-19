@@ -14,6 +14,14 @@
   --color-plum-mid: #a54d85;
   --color-toast: #3b404b;
 
+  /* Status tints: dark text on pale backgrounds (AA). Never use yellow as text. */
+  --color-ok-bg: #dff0e3;
+  --color-ok-ink: #14532d;
+  --color-warn-bg: #fde8c8;
+  --color-warn-ink: #7a3e00;
+  --color-bad-bg: #fbdcdc;
+  --color-bad-ink: #7f1d1d;
+
   --font-display: "Anton", Impact, sans-serif;
   --font-sans: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
