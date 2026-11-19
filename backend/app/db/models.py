@@ -17,7 +17,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from backend.app.common.database import Base
+try:
+    from app.db.session import Base
+except ImportError:
+    try:
+        from backend.app.db.session import Base
+    except ImportError:
+        from backend.app.common.database import Base
 
 
 class User(Base):

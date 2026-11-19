@@ -2,8 +2,12 @@
 from sqlalchemy import func, case, extract, cast, String
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import Listing
-from backend.app.impact import schemas
+try:
+    from app.db.models import Listing
+except ImportError:
+    from backend.app.db.models import Listing
+
+from . import schemas
 
 
 def get_impact(db: Session) -> schemas.ImpactResponse:

@@ -4,15 +4,26 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import (
-    Document,
-    Listing,
-    NgoProfile,
-    Proof,
-    ProviderProfile,
-    Rating,
-    User,
-)
+try:
+    from app.db.models import (
+        Document,
+        Listing,
+        NgoProfile,
+        Proof,
+        ProviderProfile,
+        Rating,
+        User,
+    )
+except ImportError:
+    from backend.app.db.models import (
+        Document,
+        Listing,
+        NgoProfile,
+        Proof,
+        ProviderProfile,
+        Rating,
+        User,
+    )
 
 
 @pytest.fixture()

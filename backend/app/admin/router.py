@@ -4,9 +4,23 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.app.common.database import get_db
-from backend.app.common.deps import require_role
-from backend.app.admin import schemas, service
+try:
+    from app.db.session import get_db
+except ImportError:
+    try:
+        from app.common.database import get_db
+    except ImportError:
+        from backend.app.common.database import get_db
+
+try:
+    from app.auth.dependencies import require_role
+except ImportError:
+    try:
+        from app.common.deps import require_role
+    except ImportError:
+        from backend.app.common.deps import require_role
+
+from . import schemas, service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

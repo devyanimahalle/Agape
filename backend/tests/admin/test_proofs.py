@@ -48,7 +48,10 @@ class TestReviewProof:
         assert data["id"] == 300
 
         # Verify NGO rating was updated
-        from backend.app.db.models import NgoProfile
+        try:
+            from app.db.models import NgoProfile
+        except ImportError:
+            from backend.app.db.models import NgoProfile
         ngo_profile = db_session.query(NgoProfile).filter(NgoProfile.user_id == 31).first()
         assert ngo_profile is not None
         assert ngo_profile.rating_count >= 1

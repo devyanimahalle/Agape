@@ -2,8 +2,15 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from backend.app.common.database import get_db
-from backend.app.impact import schemas, service
+try:
+    from app.db.session import get_db
+except ImportError:
+    try:
+        from app.common.database import get_db
+    except ImportError:
+        from backend.app.common.database import get_db
+
+from . import schemas, service
 
 router = APIRouter(tags=["impact"])
 

@@ -4,7 +4,10 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import Listing, User, NgoProfile, ProviderProfile
+try:
+    from app.db.models import Listing, User, NgoProfile, ProviderProfile
+except ImportError:
+    from backend.app.db.models import Listing, User, NgoProfile, ProviderProfile
 
 
 @pytest.fixture()

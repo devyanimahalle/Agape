@@ -12,10 +12,16 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
-from backend.app.common.database import Base, get_db
-from backend.app.common.deps import UserStub, get_current_user
-from backend.app.db import models  # noqa: F401 — register all models with Base
-from backend.app.main import app
+try:
+    from app.db.session import Base, get_db
+    from app.common.deps import UserStub, get_current_user
+    from app.db import models  # noqa: F401 — register all models with Base
+    from app.main import app
+except ImportError:
+    from backend.app.db.session import Base, get_db
+    from backend.app.common.deps import UserStub, get_current_user
+    from backend.app.db import models  # noqa: F401 — register all models with Base
+    from backend.app.main import app
 
 
 # ---------------------------------------------------------------------------

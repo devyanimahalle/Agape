@@ -2,8 +2,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.admin.router import router as admin_router
-from backend.app.impact.router import router as impact_router
+try:
+    from app.admin.router import router as admin_router
+    from app.impact.router import router as impact_router
+except ImportError:
+    from backend.app.admin.router import router as admin_router
+    from backend.app.impact.router import router as impact_router
 
 app = FastAPI(
     title="SharePlate API",

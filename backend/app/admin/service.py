@@ -6,15 +6,31 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from backend.app.admin import schemas
-from backend.app.db.models import (
-    Listing,
-    NgoProfile,
-    Proof,
-    ProviderProfile,
-    Rating,
-    User,
-)
+try:
+    from app.errors import AppError
+except ImportError:
+    AppError = None
+
+from . import schemas
+
+try:
+    from app.db.models import (
+        Listing,
+        NgoProfile,
+        Proof,
+        ProviderProfile,
+        Rating,
+        User,
+    )
+except ImportError:
+    from backend.app.db.models import (
+        Listing,
+        NgoProfile,
+        Proof,
+        ProviderProfile,
+        Rating,
+        User,
+    )
 
 
 # ---------------------------------------------------------------------------
