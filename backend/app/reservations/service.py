@@ -144,6 +144,8 @@ def cancel_reservation(db: Session, ngo_id: int, listing_id: int, now: datetime 
 def complete_pickup(
     db: Session, ngo_id: int, listing_id: int, files: list[UploadFile], note: str | None
 ) -> Listing:
+    """Confirm a pickup in one step. Files are optional here: the proof of donation is uploaded afterwards on its own
+    page (`submit_proof`). Files sent anyway are stored as proof of donation, as before."""
     files = [f for f in files if f is not None and getattr(f, "filename", None)]
     listing = _load(db, listing_id, lock=True)  # row lock: a second completion waits, then sees "completed"
     if listing is None:
@@ -155,9 +157,6 @@ def complete_pickup(
     if listing.reserved_by_ngo_id != ngo_id:
         db.rollback()
         raise ApiError(403, "FORBIDDEN", "You did not reserve this listing")
-    if not files:
-        db.rollback()
-        raise ApiError(400, "PROOF_REQUIRED", "Upload at least one proof (photo or letter) to complete pickup")
 
     saved_paths: list[str] = []
     try:
@@ -174,6 +173,61 @@ def complete_pickup(
             storage.delete_file(path)
         raise
     return _load(db, listing_id)
+
+
+# ---------------------------------------------------------------- proof of donation
+
+def proof_summary(db: Session, listing_ids: list[int]) -> dict[int, tuple[str, int]]:
+    """{listing_id: (proof_status, proof_count)}. Status is none (no files yet), approved (any file approved),
+    pending (otherwise any file awaiting review) or rejected (every file rejected)."""
+    if not listing_ids:
+        return {}
+    rows = db.execute(select(Proof.listing_id, Proof.review_status).where(Proof.listing_id.in_(listing_ids))).all()
+    by_listing: dict[int, list[str]] = {}
+    for lid, review in rows:
+        by_listing.setdefault(lid, []).append(review)
+    out: dict[int, tuple[str, int]] = {}
+    for lid, reviews in by_listing.items():
+        status = "approved" if "approved" in reviews else "pending" if "pending" in reviews else "rejected"
+        out[lid] = (status, len(reviews))
+    return out
+
+
+def submit_proof(db: Session, ngo_id: int, listing_id: int, files: list[UploadFile], note: str | None) -> dict:
+    """Attach proof of donation (evidence the collected food was actually donated or distributed) to a collected
+    pickup. It can be done any time after the pickup is confirmed, and again after a rejection."""
+    files = [f for f in files if f is not None and getattr(f, "filename", None)]
+    listing = _load(db, listing_id, lock=True)
+    if listing is None:
+        db.rollback()
+        raise _not_found()
+    if listing.reserved_by_ngo_id != ngo_id:
+        db.rollback()
+        raise ApiError(403, "FORBIDDEN", "You did not collect this listing")
+    if listing.status != "completed":
+        db.rollback()
+        raise ApiError(409, "INVALID_STATE", "Confirm the pickup before uploading proof of donation")
+    if not files:
+        db.rollback()
+        raise ApiError(400, "PROOF_REQUIRED", "Upload at least one proof of donation (a photo, a signed sheet or a receipt)")
+    if proof_summary(db, [listing_id]).get(listing_id, ("none", 0))[0] == "approved":
+        db.rollback()
+        raise ApiError(409, "PROOF_ALREADY_APPROVED", "The proof of donation for this pickup was already approved")
+
+    saved_paths: list[str] = []
+    try:
+        for upload in files:
+            doc = storage.save_proof_file(db, ngo_id, upload)
+            saved_paths.append(doc.private_path)
+            db.add(Proof(listing_id=listing_id, ngo_id=ngo_id, document_id=doc.id, note=note))
+        db.commit()
+    except Exception:
+        db.rollback()
+        for path in saved_paths:
+            storage.delete_file(path)
+        raise
+    status, count = proof_summary(db, [listing_id])[listing_id]
+    return {"listing_id": listing_id, "added": len(saved_paths), "proof_status": status, "proof_count": count}
 
 
 # ---------------------------------------------------------------- my reservations
@@ -195,12 +249,15 @@ def my_reservations(db: Session, ngo_id: int, status: str | None) -> list[dict]:
             )
         ).scalars()
     )
+    proofs = proof_summary(db, [row.id for row, _ in rows])
     return [
         {
             "listing": listing,
             "org_name": provider.org_name,
             "provider_category": provider.category,
             "has_rated": listing.id in rated_ids,
+            "proof_status": proofs.get(listing.id, ("none", 0))[0],
+            "proof_count": proofs.get(listing.id, ("none", 0))[1],
         }
         for listing, provider in rows
     ]

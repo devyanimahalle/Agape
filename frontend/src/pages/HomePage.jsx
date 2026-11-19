@@ -52,7 +52,7 @@ function PickupWindow() {
 const STEPS = [
   ['1', 'Donors list surplus food', 'Restaurants, caterers and other donors post what is available, how much, and the collection window.'],
   ['2', 'Verified NGOs reserve', 'NGOs approved by an admin see nearby listings and reserve what they can collect in time.'],
-  ['3', 'Pickup is confirmed', 'The NGO uploads proof of collection and can rate the donor. Meal impact is shown as an estimate.'],
+  ['3', 'Pickup is confirmed', 'The NGO confirms the pickup, uploads proof of donation and can rate the donor. Meal impact is shown as an estimate.'],
 ]
 
 const TRUST = [

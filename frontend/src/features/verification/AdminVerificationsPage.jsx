@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button, Card, Badge, EmptyState, LoadingState, Modal } from '../../components/ui'
+import DocumentModal from '../../components/DocumentModal'
 import { listVerifications, decideVerification, fetchDocumentUrl } from './api'
 import Page from './components/Page'
 import { ServerAlert, RejectionBanner, STATUS_TONE, inputCls, labelCls } from './components/fields'
@@ -10,71 +11,6 @@ const TYPES = ['', 'provider', 'ngo']
 const SUBTITLE = 'Review donor and NGO verification requests. Documents open privately and are never public.'
 
 const filterCls = 'mt-1.5 rounded-[6px] bg-panel px-4 py-3 text-sm font-normal capitalize'
-
-// ── Document viewer modal ─────────────────────────────────────────────────────
-function DocumentModal({ docId, onClose }) {
-  const [url, setUrl] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const urlRef = useRef(null)
-
-  useEffect(() => {
-    if (!docId) return
-    let cancelled = false
-    setLoading(true)
-    setError('')
-    fetchDocumentUrl(docId)
-      .then((objUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(objUrl)
-          return
-        }
-        urlRef.current = objUrl
-        setUrl(objUrl)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.detail ?? err.message ?? 'Could not load document')
-      })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [docId])
-
-  function handleClose() {
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current)
-      urlRef.current = null
-    }
-    setUrl(null)
-    onClose()
-  }
-
-  return (
-    <Modal open={!!docId} onClose={handleClose} title="Document viewer">
-      {loading && <LoadingState label="Loading document…" />}
-      {error && (
-        <div className="space-y-3">
-          <p className="text-sm text-bad-ink">{error}</p>
-          <Button variant="ghost" onClick={handleClose}>Close</Button>
-        </div>
-      )}
-      {url && !loading && !error && (
-        <div className="space-y-3">
-          <iframe
-            src={url}
-            title="Verification document"
-            className="h-96 w-full rounded-[6px] bg-canvas"
-          />
-          <div className="flex flex-wrap gap-2">
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <Button variant="dark">Open in new tab</Button>
-            </a>
-            <Button variant="ghost" onClick={handleClose}>Close</Button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  )
-}
 
 // ── Reject modal ──────────────────────────────────────────────────────────────
 function RejectModal({ open, onClose, onConfirm, busy }) {
@@ -199,7 +135,7 @@ function VerificationCard({ item, onDecide }) {
         busy={busy}
       />
 
-      <DocumentModal docId={docId} onClose={() => setDocId(null)} />
+      <DocumentModal docId={docId} fetchUrl={fetchDocumentUrl} filename="verification-document" onClose={() => setDocId(null)} />
     </>
   )
 }

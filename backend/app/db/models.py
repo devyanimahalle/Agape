@@ -82,7 +82,7 @@ class NgoProfile(Base):
 
 
 class Document(Base):
-    """A privately stored uploaded file (proof of pickup today; verification documents later)."""
+    """A privately stored uploaded file (proof of donation, verification documents)."""
 
     __tablename__ = "documents"
 

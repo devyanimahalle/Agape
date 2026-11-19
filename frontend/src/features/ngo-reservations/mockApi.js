@@ -1,4 +1,6 @@
 // In-memory stand-in for the backend, shaped exactly like the contract. Dev/demo use only.
+import { addMockProof, mockProofSummary } from '../../lib/mockProofs'
+
 const hours = (h) => new Date(Date.now() + h * 3600 * 1000).toISOString()
 const err = (status, code, detail) => Object.assign(new Error(detail), { status, code, detail })
 const wait = (v) => new Promise((r) => setTimeout(() => r(structuredClone(v)), 120))
@@ -67,18 +69,28 @@ export function cancelReservation(id) {
   return wait(strip(l))
 }
 
-export function completePickup(id, files) {
+export function completePickup(id) {
   const l = listings.find((x) => x.id === id)
-  if (!files?.length) return Promise.reject(err(400, 'PROOF_REQUIRED', 'Upload at least one proof'))
   if (!l || l.status !== 'reserved') return Promise.reject(err(409, 'INVALID_STATE', 'Only a reserved listing can be completed'))
   Object.assign(l, { status: 'completed', completed_at: new Date().toISOString() })
   return wait(strip(l))
 }
 
+export function submitProof(id, files, note) {
+  const l = listings.find((x) => x.id === id)
+  if (!l || !mine.has(id)) return Promise.reject(err(404, 'NOT_FOUND', 'Listing not found'))
+  if (l.status !== 'completed') return Promise.reject(err(409, 'INVALID_STATE', 'Confirm the pickup before uploading proof of donation'))
+  if (!files?.length) return Promise.reject(err(400, 'PROOF_REQUIRED', 'Upload at least one proof of donation'))
+  if (mockProofSummary(id).status === 'approved') return Promise.reject(err(409, 'PROOF_ALREADY_APPROVED', 'The proof of donation for this pickup was already approved'))
+  files.forEach((file) => addMockProof({ listing: l, providerOrg: l.org, ngoId: ME.user.id, ngoOrg: ME.profile.org_name, note, file }))
+  const { status, count } = mockProofSummary(id)
+  return wait({ listing_id: id, added: files.length, proof_status: status, proof_count: count })
+}
+
 export function getReservations(status) {
   const rows = listings
     .filter((l) => mine.has(l.id) && (!status || l.status === status))
-    .map((l) => ({ ...strip(l), org_name: l.org, provider_category: l.category, has_rated: rated.has(l.id) }))
+    .map((l) => ({ ...strip(l), org_name: l.org, provider_category: l.category, has_rated: rated.has(l.id), proof_status: mockProofSummary(l.id).status, proof_count: mockProofSummary(l.id).count }))
   return wait(rows)
 }
 

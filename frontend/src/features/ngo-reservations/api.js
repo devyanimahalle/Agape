@@ -64,10 +64,15 @@ export const rateProvider = (id, { stars, comment }) =>
     ? mock.rateProvider(id, { stars, comment })
     : request(`/listings/${id}/rate-provider`, { method: 'POST', json: { stars, comment } })
 
-export function completePickup(id, files, note) {
-  if (USE_MOCKS) return mock.completePickup(id, files, note)
+/** Confirm the pickup in one step: no files. Proof of donation is uploaded afterwards (see submitProof). */
+export const completePickup = (id) =>
+  USE_MOCKS ? mock.completePickup(id) : request(`/listings/${id}/complete`, { method: 'POST' })
+
+/** Proof of donation for a collected pickup: files (PDF, JPG or PNG up to 10 MB each) and an optional note. */
+export function submitProof(id, files, note) {
+  if (USE_MOCKS) return mock.submitProof(id, files, note)
   const form = new FormData()
   files.forEach((f) => form.append('files', f))
   if (note) form.append('note', note)
-  return request(`/listings/${id}/complete`, { method: 'POST', form })
+  return request(`/listings/${id}/proof`, { method: 'POST', form })
 }

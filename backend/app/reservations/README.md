@@ -1,7 +1,7 @@
 # Reservations module (Role D): NGO board and reservations
 
 Endpoints (all under `/api/v1`): `GET /geocode`, `GET /board`, `POST /listings/{id}/reserve`,
-`POST /listings/{id}/cancel-reservation`, `POST /listings/{id}/complete`, `GET /ngo/reservations`,
+`POST /listings/{id}/cancel-reservation`, `POST /listings/{id}/complete` (one-click, no files), `POST /listings/{id}/proof` (proof of donation), `GET /ngo/reservations`,
 `POST /listings/{id}/rate-provider`.
 
 | File | Purpose |
@@ -51,7 +51,7 @@ TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/sharepla
 ```
 34 tests, **97 % coverage** of `app/reservations`. Requires PostgreSQL (the race test is meaningless on SQLite).
 Covered: double-reservation race (10 concurrent NGOs, and 2 concurrent HTTP requests), unverified NGO blocked, expired listing
-blocked, complete without proof rejected, duplicate rating rejected, distance ordering, plus cancel rules, file validation,
+blocked, complete without files confirms the pickup, duplicate rating rejected, distance ordering, plus cancel rules, file validation,
 rating averages, general providers never rated, geocode caching/throttle/User-Agent, expiry job.
 
 ## CI (add to Role B's backend job)

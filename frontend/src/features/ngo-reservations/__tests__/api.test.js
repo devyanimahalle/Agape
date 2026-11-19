@@ -44,17 +44,33 @@ describe('api (real HTTP layer)', () => {
     expect(lastCall().url.pathname).toBe('/api/v1/listings/5/cancel-reservation')
   })
 
-  it('completePickup posts multipart with repeated files[] and a note', async () => {
+  it('completePickup confirms the pickup with a bare POST: no files, no body', async () => {
     fetch.mockReturnValue(json(200, {}))
-    const f1 = new File(['a'], 'a.png', { type: 'image/png' })
-    const f2 = new File(['b'], 'b.pdf', { type: 'application/pdf' })
-    await api.completePickup(9, [f1, f2], 'done')
+    await api.completePickup(9)
     const { url, init } = lastCall()
     expect(url.pathname).toBe('/api/v1/listings/9/complete')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeUndefined()
+  })
+
+  it('submitProof posts multipart with repeated files and a note to the proof endpoint', async () => {
+    fetch.mockReturnValue(json(201, {}))
+    const f1 = new File(['a'], 'a.png', { type: 'image/png' })
+    const f2 = new File(['b'], 'b.pdf', { type: 'application/pdf' })
+    await api.submitProof(9, [f1, f2], 'fed 60 people')
+    const { url, init } = lastCall()
+    expect(url.pathname).toBe('/api/v1/listings/9/proof')
+    expect(init.method).toBe('POST')
     expect(init.body).toBeInstanceOf(FormData)
     expect(init.body.getAll('files')).toHaveLength(2)
-    expect(init.body.get('note')).toBe('done')
+    expect(init.body.get('note')).toBe('fed 60 people')
     expect(init.headers['Content-Type']).toBeUndefined() // browser must set the multipart boundary
+  })
+
+  it('submitProof leaves the note out when there is none', async () => {
+    fetch.mockReturnValue(json(201, {}))
+    await api.submitProof(9, [new File(['a'], 'a.png', { type: 'image/png' })], '')
+    expect(lastCall().init.body.has('note')).toBe(false)
   })
 
   it('rateProvider posts JSON', async () => {

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Card } from '../../components/ui'
 import PageHeader from '../../components/PageHeader'
 import * as api from './api'
-import CompleteDialog from './components/CompleteDialog'
 import ConfirmDialog from './components/ConfirmDialog'
 import RateDialog from './components/RateDialog'
 import ReservationCard from './components/ReservationCard'
-import { isRateable } from './utils'
 
 const TABS = [
   { id: '', label: 'All' },
@@ -14,13 +13,15 @@ const TABS = [
   { id: 'completed', label: 'Completed' },
 ]
 
-/** /ngo/reservations — cancel, complete pickup with proof, rate the provider. */
+/** /ngo/reservations: cancel, confirm a pickup (one click, then proof of donation on its own page), rate the provider. */
 export default function NgoReservationsPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [tab, setTab] = useState('')
   const [rows, setRows] = useState([])
   const [state, setState] = useState('loading')
   const [error, setError] = useState(null)
-  const [notice, setNotice] = useState(null)
+  const [notice, setNotice] = useState(() => (location.state?.notice ? { kind: 'success', text: location.state.notice } : null))
   const [cancelTarget, setCancelTarget] = useState(null)
   const [completeTarget, setCompleteTarget] = useState(null)
   const [rateTarget, setRateTarget] = useState(null)
@@ -58,13 +59,20 @@ export default function NgoReservationsPage() {
     }
   }
 
-  async function submitComplete(files, note) {
+  // One click: record the pickup, then go straight to the proof of donation page.
+  async function confirmPickup() {
     const target = completeTarget
-    await api.completePickup(target.id, files, note) // errors surface inside the dialog
-    setCompleteTarget(null)
-    setNotice({ kind: 'success', text: `Pickup of “${target.title}” recorded. Thank you!` })
-    await load()
-    if (isRateable(target.provider_category)) setRateTarget({ ...target, status: 'completed' })
+    setBusy(true)
+    setDialogError(null)
+    try {
+      await api.completePickup(target.id)
+      setCompleteTarget(null)
+      navigate(`/ngo/pickups/${target.id}/proof`, { state: { justConfirmed: true } })
+    } catch (err) {
+      setDialogError(err.detail ?? 'Could not confirm the pickup.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function submitRating(body) {
@@ -111,7 +119,7 @@ export default function NgoReservationsPage() {
               key={r.id}
               reservation={r}
               onCancel={(x) => { setDialogError(null); setCancelTarget(x) }}
-              onComplete={setCompleteTarget}
+              onComplete={(x) => { setDialogError(null); setCompleteTarget(x) }}
               onRate={setRateTarget}
             />
           ))}
@@ -130,7 +138,15 @@ export default function NgoReservationsPage() {
         />
       )}
       {completeTarget && (
-        <CompleteDialog listing={completeTarget} onSubmit={submitComplete} onCancel={() => setCompleteTarget(null)} />
+        <ConfirmDialog
+          title="Confirm pickup?"
+          message={`Confirm that you collected “${completeTarget.title}”. You will add proof of donation next.`}
+          confirmLabel="Confirm pickup"
+          busy={busy}
+          error={dialogError}
+          onConfirm={confirmPickup}
+          onCancel={() => setCompleteTarget(null)}
+        />
       )}
       {rateTarget && <RateDialog listing={rateTarget} onSubmit={submitRating} onCancel={() => setRateTarget(null)} />}
       </div>

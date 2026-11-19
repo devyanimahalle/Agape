@@ -18,12 +18,13 @@ def reserved(make, client, category="restaurant"):
     return provider, ngo, listing_id
 
 
-def test_complete_without_proof_rejected(make, client, Session):
+def test_complete_without_files_confirms_the_pickup(make, client, Session):
+    """Confirming a pickup is one click: proof of donation is uploaded afterwards on its own page."""
     _, ngo, listing_id = reserved(make, client)
-    r = client.post(url(listing_id, "complete"), headers=h(ngo), data={"note": "no files"})
-    assert r.status_code == 400 and r.json()["code"] == "PROOF_REQUIRED"
+    r = client.post(url(listing_id, "complete"), headers=h(ngo))
+    assert r.status_code == 200 and r.json()["status"] == "completed"
     with Session() as s:
-        assert s.get(Listing, listing_id).status == "reserved"
+        assert s.get(Listing, listing_id).status == "completed"
         assert s.query(Proof).count() == 0
 
 

@@ -19,7 +19,7 @@ Setup: `cp .env.example .env` (defaults to mock mode), then `npm run dev` and op
 - [ ] `/login?role=ngo&next=/ngo/reservations` shows "Sign in to continue." and returns there after sign-in; `?next=//evil.com` is ignored and the role home is used. If the account's real role differs from the portal, `next` is dropped and the real role home opens with a notice.
 - [ ] **Continue as NGO** goes to `/ngo`: list of nearby listings, estimated meals labelled as estimates, List/Map toggle (map tiles and markers show).
 - [ ] Reserve a listing: a confirmation appears first; the card then moves to **My reservations** (`/ngo/reservations`).
-- [ ] Complete pickup needs at least one PDF/JPG/PNG proof (10 MB cap); try a wrong file type and see the error.
+- [ ] **Confirm pickup** on a reserved listing asks for one confirmation and needs NO file. It then opens `/ngo/pickups/:id/proof` (Proof of donation): upload a PDF/JPG/PNG (10 MB cap, wrong types show an error) and an optional distribution note, then **Submit proof of donation**. See "Proof of donation" below.
 - [ ] Switch the header dropdown to **Donor**: `/ngo` shows "Not available for your role"; **Account** (profile menu) shows the Donor role.
 - [ ] Switch to **Admin**: `/account` shows "Not applicable for admin accounts."
 - [ ] `/account` shows the "Demo mode: sample session, not a real account" banner.
@@ -50,7 +50,7 @@ Seed data: `python -m app.db.seed` creates ONLY the admin (`admin@agape.demo` / 
 - [ ] Register an NGO, submit its onboarding, approve it as admin, then sign in as it: redirected to `/ngo`; `localStorage['access_token']` is set; **Account** shows name, email, role and "Admin-verified".
 - [ ] `/ngo` loads the real board nearest-first using the NGO's saved location (`/auth/me` `profile.lat/lng`).
 - [ ] Reserve a listing: succeeds once; reserving the same listing again (second browser or user) returns the "already taken" message.
-- [ ] Complete pickup with a real PDF/JPG/PNG, then rate the provider (restaurant/caterer providers only).
+- [ ] Confirm a pickup, add proof of donation with a real PDF/JPG/PNG, then rate the provider (restaurant/caterer providers only).
 - [ ] Unapproved NGO: `/ngo` shows the "awaiting approval" message (`403 NOT_VERIFIED`) and **Account** shows "Awaiting admin review".
 - [ ] Sign in as a registered donor: lands on `/provider`; `/ngo` shows "Not available for your role". Admin: `/account` shows "Not applicable for admin accounts."
 - [ ] **Sign out** (profile menu) clears the token, lands on `/` and returns guarded routes to "Sign in required".
@@ -97,3 +97,11 @@ Seed data: `python -m app.db.seed` creates ONLY the admin (`admin@agape.demo` / 
 - [ ] **Profile menu:** the round button at the top right (your initials) opens a menu with Account and Sign out only; it closes on `Escape`, on an outside click and after choosing an item. There is no separate Account link or Sign out button in the bar.
 - [ ] **Strict nav per role:** NGO: Food board, My reservations, Onboarding, Impact. Donor: Verification, Listings, Impact. Admin: Dashboard, Verifications, Proofs, Users, Impact. Signed out: Impact and Sign in.
 - [ ] **Registration** (live stack): `/register?role=ngo` or `?role=provider` creates the account, signs it in and lands on its home (an unverified NGO or donor sees the verification gate). In demo mode the page points to the portal instead.
+
+## Proof of donation (NGO pickup, step by step)
+- [ ] `/ngo/reservations`, a reserved card: the buttons are **Confirm pickup** and **Cancel reservation**. **Confirm pickup** opens a dialog ("You will add proof of donation next") with no file field; confirming marks the pickup collected in one click and goes straight to the Proof of donation page.
+- [ ] The Proof of donation page (orange band, one white form card) shows "Pickup confirmed. Now add proof that the food was donated.", the file field (geotagged distribution photo, signed distribution or beneficiary sheet, or receipt; PDF/JPG/PNG up to 10 MB each, several files allowed, each removable), an optional distribution note, **Submit proof of donation** and **Do this later**.
+- [ ] After submitting you land on `/ngo/reservations` with a notice; the card shows "Proof of donation: Awaiting admin review". If you chose **Do this later**, the collected card shows "Proof of donation: Needed" and an **Upload proof of donation** link back to the page, at any time. "Add more files" appears while it is waiting for review; after a rejection the card says "Not approved, upload again"; once approved there is nothing more to upload.
+- [ ] Admin, `/admin/proofs`: one card per uploaded file ("Proof of donation #N") with the listing, donor, NGO and the **distribution note**. **View proof of donation** opens the file in a viewer with **Open in new tab** and **Download**. Approve (with a star rating) or reject. Live stack: only admins can open the files (`GET /api/v1/admin/documents/{id}`).
+- [ ] Demo mode works the same way, in one browser session: confirm a pickup as an NGO, upload a file, switch the header role to Admin and open Proofs: the NGO's proof of donation is there and its file opens. (Demo data lives in memory, so use the in-app links rather than reloading the page between steps.)
+- [ ] Backend: `pytest tests/proofs`.

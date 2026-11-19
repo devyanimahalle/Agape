@@ -56,7 +56,7 @@ export default function AdminProofs() {
   };
 
   return (
-    <Page title="Proof review" subtitle="Review pickup proofs submitted by NGOs.">
+    <Page title="Proof review" subtitle="Review the proof of donation NGOs upload after a pickup.">
       <Toast toast={toast} />
 
       <div role="group" aria-label="Filter by review status" className="mb-8 flex flex-wrap gap-2">

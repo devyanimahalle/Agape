@@ -7,6 +7,7 @@ vi.mock('./lib/api', async (orig) => ({ ...(await orig()), USE_MOCKS: true }))
 vi.mock('./features/ngo-reservations', () => ({
   NgoBoardPage: () => <h2>NGO board page</h2>,
   NgoReservationsPage: () => <h2>NGO reservations page</h2>,
+  NgoProofPage: () => <h2>NGO proof page</h2>,
 }))
 
 import App from './App'

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Button, Card, StatusPill } from '../../../components/ui';
+import DocumentModal from '../../../components/DocumentModal';
 import StarRating from './StarRating';
+import { fetchDocumentUrl } from '../api';
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -24,6 +26,7 @@ export default function ProofCard({ proof, onReview }) {
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [viewing, setViewing] = useState(false);
 
   const isPending = proof.review_status === 'pending';
 
@@ -41,7 +44,7 @@ export default function ProofCard({ proof, onReview }) {
     <Card as="article" className="p-7 md:p-9">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs uppercase tracking-[1px] text-muted">
-          Proof #{proof.id} · {formatDate(proof.created_at)}
+          Proof of donation #{proof.id} · {formatDate(proof.created_at)}
         </p>
         <StatusPill status={PILL[proof.review_status] ?? 'pending'} />
       </div>
@@ -56,13 +59,25 @@ export default function ProofCard({ proof, onReview }) {
       </dl>
 
       <div className="mt-2 rounded-[6px] bg-canvas px-4 py-3">
-        <p className="text-xs text-muted">Note</p>
-        <p className="mt-0.5">{proof.note}</p>
+        <p className="text-xs text-muted">Distribution note</p>
+        <p className="mt-0.5">{proof.note || 'No note added.'}</p>
       </div>
+
+      <div className="mt-4">
+        <Button variant="dark" onClick={() => setViewing(true)}>View proof of donation</Button>
+      </div>
+      <DocumentModal
+        docId={viewing ? proof.document_id : null}
+        fetchUrl={fetchDocumentUrl}
+        title="Proof of donation"
+        frameTitle="Proof of donation file"
+        filename={`proof-of-donation-${proof.id}`}
+        onClose={() => setViewing(false)}
+      />
 
       {isPending && (
         <div className="mt-6 border-t border-line pt-6">
-          <h3 className="text-2xl">Review this proof</h3>
+          <h3 className="text-2xl">Review this proof of donation</h3>
 
           <div className="mt-4">
             <p className="text-xs font-semibold">Rating (required for approval)</p>

@@ -8,6 +8,7 @@ from app.reservations.schemas import (
     BoardListingOut,
     GeocodeOut,
     ListingOut,
+    ProofSubmittedOut,
     RateProviderIn,
     RateProviderOut,
     ReservationOut,
@@ -69,6 +70,18 @@ def complete(
     return service.complete_pickup(db, user.id, listing_id, files, note)
 
 
+@router.post("/listings/{listing_id}/proof", response_model=ProofSubmittedOut, status_code=201)
+def submit_proof(
+    listing_id: int,
+    files: list[UploadFile] = File(default=[]),
+    note: str | None = Form(default=None, max_length=1000),
+    user=Depends(require_ngo),
+    db: Session = Depends(get_db),
+):
+    """Proof of donation for a collected pickup: PDF/JPG/PNG up to 10 MB each, plus an optional note."""
+    return service.submit_proof(db, user.id, listing_id, files, note)
+
+
 @router.get("/ngo/reservations", response_model=list[ReservationOut])
 def my_reservations(
     status: str | None = Query(default=None, pattern="^(listed|reserved|completed|cancelled|expired)$"),
@@ -82,6 +95,8 @@ def my_reservations(
                 "org_name": i["org_name"],
                 "provider_category": i["provider_category"],
                 "has_rated": i["has_rated"],
+                "proof_status": i["proof_status"],
+                "proof_count": i["proof_count"],
             }
         )
         for i in service.my_reservations(db, user.id, status)

@@ -1,6 +1,6 @@
 // App shell: Layout + ErrorBoundary + role-gated routes. Feature pages come from src/features/*.
 import { Routes, Route, Link } from 'react-router-dom'
-import { NgoBoardPage, NgoReservationsPage } from './features/ngo-reservations'
+import { NgoBoardPage, NgoProofPage, NgoReservationsPage } from './features/ngo-reservations'
 import { AdminDashboard, AdminProofs, AdminUsers, ImpactPage } from './features/admin-impact'
 import { ProviderListingsPage } from './features/provider-listings'
 import { ProviderVerificationPage, NgoOnboardingPage, AdminVerificationsPage } from './features/verification'
@@ -49,6 +49,7 @@ export default function App() {
           <Route path="/impact" element={<ImpactPage />} />
           <Route path="/ngo" element={verifiedNgo(<NgoBoardPage />)} />
           <Route path="/ngo/reservations" element={verifiedNgo(<NgoReservationsPage />)} />
+          <Route path="/ngo/pickups/:id/proof" element={verifiedNgo(<NgoProofPage />)} />
           <Route path="/ngo/onboarding" element={ngoOnly(<NgoOnboardingPage />)} />
           <Route path="*" element={<NotFound />} />
         </Route>

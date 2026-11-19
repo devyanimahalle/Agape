@@ -46,6 +46,15 @@ class ReservationOut(ListingOut):
     org_name: str
     provider_category: str
     has_rated: bool
+    proof_status: str = "none"  # none | pending | approved | rejected: state of the proof of donation
+    proof_count: int = 0
+
+
+class ProofSubmittedOut(BaseModel):
+    listing_id: int
+    added: int
+    proof_status: str
+    proof_count: int
 
 
 class GeocodeOut(BaseModel):

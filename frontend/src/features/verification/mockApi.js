@@ -55,10 +55,3 @@ export function decideVerification(id, { decision, rejection_reason }) {
   v.rejection_reason = rejection_reason ?? null
   return wait(v)
 }
-
-export function fetchDocumentUrl(id) {
-  // Return a data URL placeholder in mock mode
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="18" fill="#6b7280">Mock document ${id}</text></svg>`
-  const blob = new Blob([svg], { type: 'image/svg+xml' })
-  return Promise.resolve(URL.createObjectURL(blob))
-}

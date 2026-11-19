@@ -5,7 +5,7 @@
 //   admin     GET  /admin/verifications               POST /admin/verifications/{id}/decision (form)
 //             GET  /admin/documents/{id}   (file; fetched with the Bearer token, so it is turned into a blob URL)
 // Set VITE_USE_MOCKS=true to run without a backend.
-import { api, API_BASE, getToken, USE_MOCKS, ApiError } from '../../lib/api'
+import { api, USE_MOCKS, ApiError } from '../../lib/api'
 import * as mock from './mockApi'
 
 export { USE_MOCKS, ApiError }
@@ -90,24 +90,5 @@ export function decideVerification(id, { decision, rejection_reason }) {
   })
 }
 
-/** Fetch a document as a blob using the Bearer token. Returns an object URL.
- *  Caller must call URL.revokeObjectURL(url) when done. */
-export async function fetchDocumentUrl(id) {
-  if (USE_MOCKS) return mock.fetchDocumentUrl(id)
-  const token = getToken()
-  let res
-  try {
-    res = await fetch(`${API_BASE}/admin/documents/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-  } catch {
-    throw new ApiError(0, 'NETWORK', 'Could not reach the server. Check your connection.')
-  }
-  if (res.status === 404) throw new ApiError(404, 'NOT_FOUND', 'Document not found or already deleted.')
-  if (!res.ok) {
-    const data = await res.json().catch(() => null)
-    throw new ApiError(res.status, data?.code ?? 'ERROR', typeof data?.detail === 'string' ? data.detail : 'Could not load document.')
-  }
-  const blob = await res.blob()
-  return URL.createObjectURL(blob)
-}
+// Private documents are fetched with the Bearer token and shown from a blob URL (see lib/documents.js).
+export { fetchDocumentUrl } from '../../lib/documents'
