@@ -47,6 +47,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg2://shareplate:shareplate@localhost:5432/shareplate_test
+      TEST_DATABASE_URL: postgresql+psycopg://shareplate:shareplate@localhost:5432/shareplate_test
       JWT_SECRET: ci-only-secret-ci-only-secret-ci-only
     steps:
       - uses: actions/checkout@v4
