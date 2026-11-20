@@ -1,0 +1,40 @@
+// Copy for each sign-in portal. Admin has no self-registration. Only the admin has a demo account (`demo`):
+// NGOs and donors are not pre-seeded, they register and get verified live.
+export const PORTALS = {
+  ngo: {
+    key: 'ngo',
+    label: 'NGO',
+    cardTitle: 'NGO',
+    cardText: 'Find nearby surplus food on a list or map, reserve it, then confirm pickup with proof. NGOs are admin-verified first.',
+    heading: 'NGO sign in',
+    subtitle: 'Sign in to see surplus food near you and reserve it.',
+    feature: { title: 'NGO food board & reservations', text: 'Verified NGOs see nearby surplus food on a list or map, reserve it, then confirm pickup with proof.' },
+    context: 'NGOs are admin-verified before they can see the board. New here? Register, then finish onboarding with your registration certificate.',
+    demo: null,
+    register: { label: 'Register your NGO', text: 'No account yet?' },
+  },
+  provider: {
+    key: 'provider',
+    label: 'Donor / Provider',
+    cardTitle: 'Donor / Provider',
+    cardText: 'Restaurants, caterers and home kitchens list surplus food with a collection window and see when it is reserved.',
+    heading: 'Donor sign in',
+    subtitle: 'Sign in to list surplus food and track your verification.',
+    feature: { title: 'Donor surplus listings', text: 'Verified donors list surplus food with a collection window and see when it is reserved.' },
+    context: 'Every donor is admin-verified before listing food. New here? Register, then submit one verification request.',
+    demo: null,
+    register: { label: 'Register as a donor', text: 'No account yet?' },
+  },
+  admin: {
+    key: 'admin',
+    label: 'Admin',
+    cardTitle: 'Admin',
+    cardText: 'Review donor and NGO verification requests and proofs of donation, and manage platform accounts.',
+    heading: 'Admin sign in',
+    subtitle: 'Restricted. For the platform team only.',
+    feature: { title: 'Admin verification, honest claims', text: 'Admins review every NGO and donor. FSSAI numbers get a format check plus admin review. Documents are stored privately. Meal figures are estimates.' },
+    context: 'Admin accounts are created by the platform team. There is no public sign-up for this role.',
+    demo: { email: 'admin@agape.demo', password: 'Admin@123' },
+    register: null,
+  },
+}
