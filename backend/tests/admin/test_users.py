@@ -1,5 +1,4 @@
 """Tests for GET/PATCH /api/v1/admin/users."""
-import pytest
 
 
 class TestListUsers:

@@ -7,3 +7,7 @@ __pycache__/
 .coverage
 htmlcov/
 local_dev.db
+*.db
+
+# Demo documents written by app.db.seed
+.private_uploads/

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button, Card } from '../../../components/ui'
 import * as api from '../api'
 import PinMap from './PinMap'
 
@@ -45,37 +46,37 @@ export default function LocationPicker({ location, saved, onChange }) {
   }
 
   return (
-    <section aria-label="Sorting location" className="rounded-lg border bg-white p-3 text-sm">
+    <Card as="section" aria-label="Sorting location" className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p>
           Sorting from: <strong>{location?.label ?? 'no location set'}</strong>
         </p>
         {!open && (
-          <button type="button" onClick={startEditing} className="rounded border px-2 py-1">
+          <Button variant="dark" onClick={startEditing} className="!px-4 !py-2">
             Change location
-          </button>
+          </Button>
         )}
       </div>
       {open && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-4 space-y-3">
           <form onSubmit={search} className="flex gap-2">
             <input
               aria-label="Search address"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search an address or area"
-              className="flex-1 rounded border px-2 py-1"
+              className="min-w-0 flex-1 rounded-[6px] bg-canvas px-4 py-3 focus:bg-panel"
             />
-            <button type="submit" disabled={searching} className="rounded bg-gray-800 px-3 py-1 text-white disabled:opacity-60">
+            <Button type="submit" variant="dark" disabled={searching}>
               {searching ? 'Searching…' : 'Search'}
-            </button>
+              </Button>
           </form>
-          {error && <p role="alert" className="text-red-700">{error}</p>}
+          {error && <p role="alert" className="rounded-[6px] bg-bad-bg px-4 py-3 text-bad-ink">{error}</p>}
           {results?.length > 0 && (
-            <ul className="divide-y rounded border">
+            <ul className="overflow-hidden rounded-[6px] bg-canvas">
               {results.map((r) => (
                 <li key={`${r.lat},${r.lng}`}>
-                  <button type="button" className="w-full px-2 py-1 text-left hover:bg-gray-50" onClick={() => setDraft({ lat: r.lat, lng: r.lng, label: r.label })}>
+                  <button type="button" className="w-full px-4 py-2.5 text-left hover:bg-canvas-dim" onClick={() => setDraft({ lat: r.lat, lng: r.lng, label: r.label })}>
                     {r.label}
                   </button>
                 </li>
@@ -89,20 +90,20 @@ export default function LocationPicker({ location, saved, onChange }) {
               onMove={(lat, lng) => setDraft({ lat, lng, label: 'Pinned location' })}
             />
           )}
-          <p className="text-xs text-gray-500">Drag the pin or click the map to fine-tune. Search results © OpenStreetMap contributors.</p>
+          <p className="text-xs text-muted">Drag the pin or click the map to fine-tune. Search results © OpenStreetMap contributors.</p>
           <div className="flex flex-wrap justify-end gap-2">
             {saved && (
-              <button type="button" className="rounded border px-3 py-1" onClick={() => { onChange(saved); setOpen(false) }}>
+              <Button variant="dark" onClick={() => { onChange(saved); setOpen(false) }}>
                 Use saved location
-              </button>
+              </Button>
             )}
-            <button type="button" className="rounded border px-3 py-1" onClick={() => setOpen(false)}>Cancel</button>
-            <button type="button" className="rounded bg-green-700 px-3 py-1 text-white" disabled={!draft} onClick={apply}>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="brand" disabled={!draft} onClick={apply}>
               Use this location
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </section>
+    </Card>
   )
 }

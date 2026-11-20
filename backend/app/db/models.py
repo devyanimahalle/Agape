@@ -1,10 +1,18 @@
-"""SQLAlchemy 2.0 ORM models for all SharePlate contract tables."""
+"""ORM tables. Every column here is read or written somewhere in `app/auth`, `app/listings`, `app/reservations`
+or their tests. There are no migrations yet: call `init_db()` (or `Base.metadata.create_all(engine)`) once.
+
+Notes
+- `ProviderProfile.user_id` and `NgoProfile.user_id` are the primary keys (one profile per user), so
+  `db.get(NgoProfile, user.id)` works (Role D's `require_verified_ngo` and `ngo_location`).
+- `/auth/me` and `listing_out()` serialise `__table__.columns`, so adding or renaming a column changes the API.
+- Statuses and roles are plain strings (validated in the routers), kept portable across PostgreSQL and SQLite.
+- Timestamps are timezone-aware; SQLite hands them back naive, which the code treats as UTC.
+- Relationships: only the read-only ones the Role E admin service navigates (User.provider_profile/ngo_profile,
+  Listing.provider, Proof.listing/ngo). Everything else joins on the foreign keys explicitly.
+"""
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -15,9 +23,168 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.session import Base
+from app.db.session import Base, engine
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _created() -> Mapped[datetime]:
+    return mapped_column(DateTime(timezone=True), default=_now, server_default=func.now(), nullable=False)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    # "!" is never a valid bcrypt hash, so accounts created without a password (test factories) cannot log in.
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="!")
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # provider | ngo | admin
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(30))
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = _created()
+
+    provider_profile = relationship("ProviderProfile", uselist=False, viewonly=True)  # Role E admin views
+    ngo_profile = relationship("NgoProfile", uselist=False, viewonly=True)  # Role E admin views
+
+
+class ProviderProfile(Base):
+    __tablename__ = "provider_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # restaurant | caterer | general
+    org_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[str | None] = mapped_column(String(500))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    rating_avg: Mapped[float | None] = mapped_column(Float)  # null until rated; general providers are never rated
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class NgoProfile(Base):
+    __tablename__ = "ngo_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    org_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    reg_number: Mapped[str | None] = mapped_column(String(100))
+    address: Mapped[str | None] = mapped_column(String(500))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending | approved | rejected
+    rating_avg: Mapped[float | None] = mapped_column(Float)  # null until rated (set by admin proof review)
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class Document(Base):
+    """A privately stored uploaded file (proof of donation, verification documents)."""
+
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)  # proof_photo | proof_letter | ...
+    private_path: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created()
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # soft delete (Role C uploads)
+
+
+class VerificationRequest(Base):
+    """Role C: one row per verification step awaiting (or past) admin review.
+
+    Provider verification has two steps (1 = identity and business proof, 2 = FSSAI certificate); NGOs have one
+    (registration). Only masked identifiers are stored, never the raw PAN or Aadhaar.
+    """
+
+    __tablename__ = "verification_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subject_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    subject_type: Mapped[str] = mapped_column(String(20), nullable=False)  # provider | ngo
+    step: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 | 2
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # pending | approved | rejected
+    reason: Mapped[str | None] = mapped_column(Text)
+    masked_pan: Mapped[str | None] = mapped_column(String(20))
+    masked_aadhaar: Mapped[str | None] = mapped_column(String(20))
+    fssai_number: Mapped[str | None] = mapped_column(String(20))
+    entity_name: Mapped[str | None] = mapped_column(String(255))
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created()
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Listing(Base):
+    __tablename__ = "listings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    food_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False)  # kg | portions
+    est_meals: Mapped[int] = mapped_column(Integer, nullable=False)  # an estimate, not a measurement
+    est_kg: Mapped[float] = mapped_column(Float, nullable=False)  # an estimate, not a measurement
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    address: Mapped[str] = mapped_column(String(500), nullable=False)
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    notes: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="listed")
+    reserved_by_ngo_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    reserved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created()
+
+    provider = relationship("User", foreign_keys=[provider_id], viewonly=True)  # Role E admin views
+
+    __table_args__ = (
+        Index("ix_listings_status_window_end", "status", "window_end"),
+        Index("ix_listings_provider_id", "provider_id"),
+        Index("ix_listings_reserved_by_ngo_id", "reserved_by_ngo_id"),
+    )
+
+
+class Proof(Base):
+    """One row per uploaded proof file attached to a completed pickup."""
+
+    __tablename__ = "proofs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True, nullable=False)
+    ngo_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(1000))
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    created_at: Mapped[datetime] = _created()
+
+    listing = relationship("Listing", viewonly=True)  # Role E admin views
+    ngo = relationship("User", foreign_keys=[ngo_id], viewonly=True)  # Role E admin views
+
+
+class Rating(Base):
+    __tablename__ = "ratings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)  # ngo_to_provider
+    stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = _created()
+
+    # One rating of each kind per listing: the last line of defence against double rating.
+    __table_args__ = (UniqueConstraint("listing_id", "kind", name="uq_ratings_listing_kind"),)
+
+
+def init_db(bind=None) -> None:
+    """Create all tables (no migrations yet). Safe to call repeatedly."""
+    Base.metadata.create_all(bind or engine)
+
 
 __all__ = [
     "Base",
@@ -29,235 +196,5 @@ __all__ = [
     "Listing",
     "Proof",
     "Rating",
+    "init_db",
 ]
-
-
-class User(Base):
-    __tablename__ = "users"
-    __table_args__ = (
-        CheckConstraint("role IN ('admin', 'provider', 'ngo')", name="role"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    role: Mapped[str] = mapped_column(String(20), nullable=False)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
-
-
-class ProviderProfile(Base):
-    __tablename__ = "provider_profiles"
-    __table_args__ = (
-        CheckConstraint("category IN ('restaurant', 'caterer', 'general')", name="category"),
-        CheckConstraint(
-            "verification_status IN ('pending', 'approved', 'rejected')",
-            name="verification_status",
-        ),
-    )
-
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    category: Mapped[str] = mapped_column(String(20), nullable=False)
-    org_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    verification_status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", server_default="pending"
-    )
-    rating_avg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    rating_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
-
-
-class NgoProfile(Base):
-    __tablename__ = "ngo_profiles"
-    __table_args__ = (
-        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="status"),
-    )
-
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    org_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    reg_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", server_default="pending"
-    )
-    rating_avg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    rating_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
-
-
-class VerificationRequest(Base):
-    __tablename__ = "verification_requests"
-    __table_args__ = (
-        CheckConstraint("subject_type IN ('provider', 'ngo')", name="subject_type"),
-        CheckConstraint("step IN (1, 2)", name="step"),
-        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="status"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    subject_user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    subject_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    step: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", server_default="pending"
-    )
-    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    masked_pan: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    masked_aadhaar: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    fssai_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    entity_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    reviewed_by: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
-    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class Document(Base):
-    __tablename__ = "documents"
-    __table_args__ = (
-        CheckConstraint(
-            "kind IN ('business_proof', 'pan', 'aadhaar', 'passport', 'fssai_cert', "
-            "'ngo_reg', 'proof_photo', 'proof_letter')",
-            name="kind",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    owner_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    kind: Mapped[str] = mapped_column(String(50), nullable=False)
-    private_path: Mapped[str] = mapped_column(String(1000), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class Listing(Base):
-    __tablename__ = "listings"
-    __table_args__ = (
-        Index("ix_listings_status_window_end", "status", "window_end"),
-        CheckConstraint("unit IN ('kg', 'portions')", name="unit"),
-        CheckConstraint(
-            "status IN ('listed', 'reserved', 'completed', 'cancelled', 'expired')",
-            name="status",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    provider_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    food_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, nullable=False)
-    unit: Mapped[str] = mapped_column(String(20), nullable=False)
-    est_meals: Mapped[int] = mapped_column(Integer, nullable=False)
-    est_kg: Mapped[float] = mapped_column(Float, nullable=False)
-    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    address: Mapped[str] = mapped_column(String(500), nullable=False)
-    lat: Mapped[float] = mapped_column(Float, nullable=False)
-    lng: Mapped[float] = mapped_column(Float, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="listed", server_default="listed"
-    )
-    reserved_by_ngo_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    reserved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
-
-
-class Proof(Base):
-    __tablename__ = "proofs"
-    __table_args__ = (
-        CheckConstraint(
-            "review_status IN ('pending', 'approved', 'rejected')",
-            name="review_status",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    listing_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
-    )
-    ngo_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    document_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
-    )
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    review_status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", server_default="pending"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
-
-
-class Rating(Base):
-    __tablename__ = "ratings"
-    __table_args__ = (
-        UniqueConstraint("listing_id", "kind", name="uq_ratings_listing_id_kind"),
-        CheckConstraint("kind IN ('ngo_to_provider', 'admin_to_ngo')", name="kind"),
-        CheckConstraint("stars >= 1 AND stars <= 5", name="stars"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    listing_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
-    )
-    kind: Mapped[str] = mapped_column(String(30), nullable=False)
-    stars: Mapped[int] = mapped_column(Integer, nullable=False)
-    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )

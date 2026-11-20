@@ -13,6 +13,7 @@ try:
         ProviderProfile,
         Rating,
         User,
+        VerificationRequest,
     )
 except ImportError:
     from backend.app.db.models import (
@@ -24,6 +25,10 @@ except ImportError:
         Rating,
         User,
     )
+
+
+_W0 = datetime(2024, 2, 1, tzinfo=timezone.utc)
+_W1 = datetime(2024, 2, 2, tzinfo=timezone.utc)
 
 
 @pytest.fixture()
@@ -77,11 +82,11 @@ def seed_admin_data(db_session: Session):
     db_session.flush()
 
     # Listings
-    l1 = Listing(id=100, provider_id=20, title="Surplus Rice", food_type="rice", quantity=10.0, unit="kg", est_meals=20, est_kg=10.0, status="listed", created_at=datetime(2024, 2, 1, tzinfo=timezone.utc))
-    l2 = Listing(id=101, provider_id=20, title="Extra Bread", food_type="bread", quantity=5.0, unit="kg", est_meals=10, est_kg=5.0, status="reserved", reserved_by_ngo_id=30, reserved_at=datetime(2024, 2, 5, tzinfo=timezone.utc), created_at=datetime(2024, 2, 2, tzinfo=timezone.utc))
-    l3 = Listing(id=102, provider_id=21, title="Leftover Curry", food_type="curry", quantity=8.0, unit="portions", est_meals=8, est_kg=4.0, status="completed", reserved_by_ngo_id=31, completed_at=datetime(2024, 3, 1, tzinfo=timezone.utc), created_at=datetime(2024, 2, 3, tzinfo=timezone.utc))
-    l4 = Listing(id=103, provider_id=21, title="Cancelled Meals", food_type="mixed", quantity=3.0, unit="portions", est_meals=3, est_kg=1.5, status="cancelled", created_at=datetime(2024, 2, 4, tzinfo=timezone.utc))
-    l5 = Listing(id=104, provider_id=20, title="Expired Fruit", food_type="fruit", quantity=2.0, unit="kg", est_meals=4, est_kg=2.0, status="expired", created_at=datetime(2024, 2, 5, tzinfo=timezone.utc))
+    l1 = Listing(window_start=_W0, window_end=_W1, address="1 Test Rd", id=100, provider_id=20, title="Surplus Rice", food_type="rice", quantity=10.0, unit="kg", est_meals=20, est_kg=10.0, status="listed", created_at=datetime(2024, 2, 1, tzinfo=timezone.utc))
+    l2 = Listing(window_start=_W0, window_end=_W1, address="1 Test Rd", id=101, provider_id=20, title="Extra Bread", food_type="bread", quantity=5.0, unit="kg", est_meals=10, est_kg=5.0, status="reserved", reserved_by_ngo_id=30, reserved_at=datetime(2024, 2, 5, tzinfo=timezone.utc), created_at=datetime(2024, 2, 2, tzinfo=timezone.utc))
+    l3 = Listing(window_start=_W0, window_end=_W1, address="1 Test Rd", id=102, provider_id=21, title="Leftover Curry", food_type="curry", quantity=8.0, unit="portions", est_meals=8, est_kg=4.0, status="completed", reserved_by_ngo_id=31, completed_at=datetime(2024, 3, 1, tzinfo=timezone.utc), created_at=datetime(2024, 2, 3, tzinfo=timezone.utc))
+    l4 = Listing(window_start=_W0, window_end=_W1, address="1 Test Rd", id=103, provider_id=21, title="Cancelled Meals", food_type="mixed", quantity=3.0, unit="portions", est_meals=3, est_kg=1.5, status="cancelled", created_at=datetime(2024, 2, 4, tzinfo=timezone.utc))
+    l5 = Listing(window_start=_W0, window_end=_W1, address="1 Test Rd", id=104, provider_id=20, title="Expired Fruit", food_type="fruit", quantity=2.0, unit="kg", est_meals=4, est_kg=2.0, status="expired", created_at=datetime(2024, 2, 5, tzinfo=timezone.utc))
     db_session.add_all([l1, l2, l3, l4, l5])
     db_session.flush()
 
@@ -100,6 +105,11 @@ def seed_admin_data(db_session: Session):
     # Ratings (existing)
     rating1 = Rating(id=400, listing_id=101, kind="admin_to_ngo", stars=4, comment="Good work", created_at=datetime(2024, 3, 4, tzinfo=timezone.utc))
     db_session.add(rating1)
+    # the two pending profiles have submitted their verification, so they are really awaiting review
+    db_session.add_all([
+        VerificationRequest(id=500, subject_user_id=20, subject_type="provider", step=1, status="pending", entity_name="Resto One"),
+        VerificationRequest(id=501, subject_user_id=30, subject_type="ngo", step=1, status="pending", entity_name="REG001"),
+    ])
     db_session.commit()
 
     return {

@@ -10,16 +10,26 @@ describe('mock API (contract shape for offline development)', () => {
     expect(rows.find((r) => r.provider_category === 'general').rating_avg).toBeNull()
   })
 
-  it('reserves once, then 409s; cancel puts it back; complete needs proof', async () => {
+  it('reserves once, then 409s; cancel puts it back; completing needs no files', async () => {
     await mock.reserve(1)
     await expect(mock.reserve(1)).rejects.toMatchObject({ status: 409, code: 'ALREADY_RESERVED' })
     expect((await mock.getReservations('reserved')).map((r) => r.id)).toContain(1)
-    await expect(mock.completePickup(1, [])).rejects.toMatchObject({ code: 'PROOF_REQUIRED' })
-    await mock.completePickup(1, [new File(['x'], 'p.png')])
+    await mock.completePickup(1) // one step, no files
     expect((await mock.getReservations('completed')).map((r) => r.id)).toContain(1)
     await mock.rateProvider(1, { stars: 5 })
     await expect(mock.rateProvider(1, { stars: 4 })).rejects.toMatchObject({ code: 'ALREADY_RATED' })
     await mock.reserve(4)
     expect((await mock.cancelReservation(4)).status).toBe('listed')
+  })
+
+  it('proof of donation: needs a collected pickup and a file, then shows up as pending', async () => {
+    await mock.reserve(3)
+    await expect(mock.submitProof(3, [new File(['x'], 'a.png')], 'n')).rejects.toMatchObject({ code: 'INVALID_STATE' })
+    await mock.completePickup(3)
+    expect((await mock.getReservations('completed')).find((r) => r.id === 3)).toMatchObject({ proof_status: 'none', proof_count: 0 })
+    await expect(mock.submitProof(3, [], 'n')).rejects.toMatchObject({ code: 'PROOF_REQUIRED' })
+    const out = await mock.submitProof(3, [new File(['x'], 'a.png'), new File(['y'], 'b.pdf')], 'fed 40 people')
+    expect(out).toMatchObject({ listing_id: 3, added: 2, proof_status: 'pending', proof_count: 2 })
+    expect((await mock.getReservations('completed')).find((r) => r.id === 3)).toMatchObject({ proof_status: 'pending', proof_count: 2 })
   })
 })

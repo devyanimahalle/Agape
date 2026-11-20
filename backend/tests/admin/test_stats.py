@@ -1,5 +1,4 @@
 """Tests for GET /api/v1/admin/stats."""
-import pytest
 
 
 class TestStats:

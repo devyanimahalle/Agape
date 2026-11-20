@@ -1,55 +1,92 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth, ROLES, ROLE_LABEL } from '../context/AuthContext'
+import { homeForRole, selectRolePath } from '../lib/routes'
+import ProfileMenu from './ProfileMenu'
 
-const navCls = ({ isActive }) =>
-  `press whitespace-nowrap rounded-[6px] px-3 py-1.5 ${isActive ? 'bg-brand-bright text-ink' : 'text-canvas hover:bg-toast'}`
+// The active route is marked by aria-current (set by NavLink) and drawn as an underline by .nav-link in index.css.
+const navCls = 'nav-link press whitespace-nowrap px-3 py-1.5 text-canvas'
 
 export default function Layout() {
-  const { user, mock, mockRole, setMockRole, logout } = useAuth()
+  const { user, mock, mockRole, setMockRole } = useAuth()
+  const location = useLocation()
+  const roleNotice = location.state?.roleNotice
+  // The role selector is a one-screen gateway: a short footer lets it fit a 1280x720 desktop without scrolling.
+  const compactFooter = location.pathname === '/select-role'
   return (
-    <div className="min-h-screen bg-canvas text-ink">
+    <div className="flex min-h-screen flex-col bg-canvas text-ink">
       <header className="on-ink bg-ink text-canvas">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 md:px-10">
-          <Link to="/" className="font-display text-2xl uppercase leading-none tracking-[0.02em] text-brand-bright">Agape</Link>
-          <nav aria-label="Main" className="-mx-1 flex min-w-0 gap-1 overflow-x-auto">
-            <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
-            <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
-            {user && <NavLink to="/account" className={navCls}>Account</NavLink>}
+          <Link to={user ? homeForRole(user.role) : '/'} className="font-display text-2xl uppercase leading-none tracking-[0.02em] text-brand-bright">Agape</Link>
+          <nav aria-label="Main" className="-ml-3 flex min-w-0 flex-wrap gap-1 md:ml-0">
+            {user?.role === 'ngo' && (
+              <>
+                <NavLink to="/ngo" end className={navCls}>Food board</NavLink>
+                <NavLink to="/ngo/reservations" className={navCls}>My reservations</NavLink>
+                <NavLink to="/ngo/onboarding" className={navCls}>Onboarding</NavLink>
+              </>
+            )}
+            {user?.role === 'provider' && (
+              <>
+                <NavLink to="/provider" end className={navCls}>Verification</NavLink>
+                <NavLink to="/provider/listings" className={navCls}>Listings</NavLink>
+              </>
+            )}
+            {user?.role === 'admin' && (
+              <>
+                <NavLink to="/admin" end className={navCls}>Dashboard</NavLink>
+                <NavLink to="/admin/verifications" className={navCls}>Verifications</NavLink>
+                <NavLink to="/admin/proofs" className={navCls}>Proofs</NavLink>
+                <NavLink to="/admin/users" className={navCls}>Users</NavLink>
+              </>
+            )}
+            <NavLink to="/impact" className={navCls}>Impact</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            {mock ? (
+            {mock && (
               <div className="flex items-center gap-2">
                 <span className="rounded-pill bg-brand-bright px-2.5 py-0.5 text-xs font-bold uppercase text-ink">Demo mode</span>
-                <select
-                  aria-label="Demo role"
-                  value={mockRole}
-                  onChange={(e) => setMockRole(e.target.value)}
-                  className="rounded-[6px] bg-canvas px-2 py-1.5 text-ink"
-                >
-                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-                </select>
+                {user && (
+                  <select
+                    aria-label="Demo role"
+                    value={mockRole}
+                    onChange={(e) => setMockRole(e.target.value)}
+                    className="rounded-[6px] bg-canvas px-2 py-1.5 text-ink"
+                  >
+                    {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                  </select>
+                )}
               </div>
-            ) : user ? (
-              <>
-                <span>{user.name ?? ROLE_LABEL[user.role]}</span>
-                <button onClick={logout} className="press underline underline-offset-4">Sign out</button>
-              </>
+            )}
+            {user ? (
+              <ProfileMenu />
             ) : (
-              <Link to="/login" className="press rounded-[6px] bg-brand-bright px-4 py-1.5 font-bold text-ink">Sign in</Link>
+              <Link to={selectRolePath()} className="press rounded-[6px] bg-brand-bright px-4 py-1.5 font-bold text-ink">Sign in</Link>
             )}
           </div>
         </div>
       </header>
-      <Outlet />
-      <footer className="on-ink bg-ink text-on-ink">
-        <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
-          <p aria-hidden="true" className="font-display text-[clamp(3.5rem,13vw,9rem)] uppercase leading-[0.85] text-brand-bright">Agape</p>
-          <p className="mt-6 max-w-3xl text-sm leading-relaxed">
-            NGOs are admin-verified. FSSAI numbers get a format check plus admin review. Documents are stored privately.
-            Meal figures are estimates.
-          </p>
-        </div>
-      </footer>
+      <div className="flex-1">
+        {roleNotice && <p role="status" className="bg-highlight px-5 py-3 text-center text-sm font-bold text-ink md:px-10">{roleNotice}</p>}
+        <Outlet />
+      </div>
+      {compactFooter ? (
+        <footer className="on-ink bg-ink text-on-ink">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-5 py-4 md:px-10">
+            <p aria-hidden="true" className="font-display text-3xl uppercase leading-none text-brand-bright">Agape</p>
+            <p className="text-xs leading-relaxed">NGOs are admin-verified. Documents are stored privately. Meal figures are estimates.</p>
+          </div>
+        </footer>
+      ) : (
+        <footer className="on-ink bg-ink text-on-ink">
+          <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
+            <p aria-hidden="true" className="font-display text-[clamp(3.5rem,13vw,9rem)] uppercase leading-[0.85] text-brand-bright">Agape</p>
+            <p className="mt-6 max-w-3xl text-sm leading-relaxed">
+              NGOs are admin-verified. FSSAI numbers get a format check plus admin review. Documents are stored privately.
+              Meal figures are estimates.
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

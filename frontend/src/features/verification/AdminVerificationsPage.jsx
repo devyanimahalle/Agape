@@ -1,82 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button, Card, Badge, EmptyState, LoadingState, Modal } from '../../components/ui'
+import DocumentModal from '../../components/DocumentModal'
 import { listVerifications, decideVerification, fetchDocumentUrl } from './api'
+import Page from './components/Page'
+import { ServerAlert, RejectionBanner, STATUS_TONE, inputCls, labelCls } from './components/fields'
 
-const STATUS_TONE = { pending: 'warn', approved: 'ok', rejected: 'bad' }
-const TYPE_LABEL = { provider_step1: 'Provider — Step 1', provider_step2: 'Provider — Step 2', ngo: 'NGO onboarding' }
+const TYPE_LABEL = { provider: 'Donor verification', ngo: 'NGO onboarding' }
+const STATUSES = ['', 'pending', 'approved', 'rejected']
+const TYPES = ['', 'provider', 'ngo']
+const SUBTITLE = 'Review donor and NGO verification requests. Documents open privately and are never public.'
 
-function ServerAlert({ msg }) {
-  return msg ? (
-    <p role="alert" className="rounded-md bg-bad-bg px-4 py-2 text-sm text-bad-ink">
-      {msg}
-    </p>
-  ) : null
-}
-
-// ── Document viewer modal ─────────────────────────────────────────────────────
-function DocumentModal({ docId, onClose }) {
-  const [url, setUrl] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const urlRef = useRef(null)
-
-  useEffect(() => {
-    if (!docId) return
-    let cancelled = false
-    setLoading(true)
-    setError('')
-    fetchDocumentUrl(docId)
-      .then((objUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(objUrl)
-          return
-        }
-        urlRef.current = objUrl
-        setUrl(objUrl)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.detail ?? err.message ?? 'Could not load document')
-      })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [docId])
-
-  function handleClose() {
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current)
-      urlRef.current = null
-    }
-    setUrl(null)
-    onClose()
-  }
-
-  return (
-    <Modal open={!!docId} onClose={handleClose} title="Document viewer">
-      {loading && <LoadingState label="Loading document…" />}
-      {error && (
-        <div className="space-y-3">
-          <p className="text-sm text-bad-ink">{error}</p>
-          <Button variant="ghost" onClick={handleClose}>Close</Button>
-        </div>
-      )}
-      {url && !loading && !error && (
-        <div className="space-y-3">
-          <iframe
-            src={url}
-            title="Verification document"
-            className="h-96 w-full rounded border border-line bg-canvas"
-          />
-          <div className="flex gap-2">
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <Button variant="primary">Open in new tab</Button>
-            </a>
-            <Button variant="ghost" onClick={handleClose}>Close</Button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  )
-}
+const filterCls = 'mt-1.5 rounded-[6px] bg-panel px-4 py-3 text-sm font-normal capitalize'
 
 // ── Reject modal ──────────────────────────────────────────────────────────────
 function RejectModal({ open, onClose, onConfirm, busy }) {
@@ -99,17 +33,17 @@ function RejectModal({ open, onClose, onConfirm, busy }) {
   return (
     <Modal open={open} onClose={handleClose} title="Reject verification">
       <div className="space-y-3">
-        <label className="block text-sm font-semibold" htmlFor="reject-reason">Rejection reason *</label>
+        <label className={labelCls} htmlFor="reject-reason">Rejection reason *</label>
         <textarea
           id="reject-reason"
           rows={3}
-          className="w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className={inputCls}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Explain why this submission is rejected…"
         />
         {noReason && <p role="alert" className="text-xs text-bad-ink">Rejection reason is required</p>}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="dark" onClick={handleConfirm} disabled={busy}>
             {busy ? 'Rejecting…' : 'Confirm rejection'}
           </Button>
@@ -120,7 +54,16 @@ function RejectModal({ open, onClose, onConfirm, busy }) {
   )
 }
 
-// ── Verification row card ─────────────────────────────────────────────────────
+// ── Verification card ─────────────────────────────────────────────────────────
+function Detail({ label, children }) {
+  return (
+    <div className="rounded-[6px] bg-canvas px-4 py-3">
+      <dt className="text-xs uppercase tracking-[1px] text-muted">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold">{children}</dd>
+    </div>
+  )
+}
+
 function VerificationCard({ item, onDecide }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -141,35 +84,44 @@ function VerificationCard({ item, onDecide }) {
   }
 
   const isPending = item.status === 'pending'
+  const docs = item.documents ?? []
+  const title = item.org_name || item.entity_name || item.user_email
 
   return (
     <>
-      <Card as="article" className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+      <Card as="article" className="space-y-4 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-semibold">{item.user_email}</p>
-            <p className="text-xs text-muted">{TYPE_LABEL[item.type] ?? item.type}</p>
+            <h2 className="text-2xl md:text-3xl">{title}</h2>
+            <p className="mt-1 text-xs text-muted">{item.user_email}</p>
           </div>
-          <Badge tone={STATUS_TONE[item.status] ?? 'neutral'}>{item.status}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{TYPE_LABEL[item.type] ?? item.type}</Badge>
+            <Badge tone={STATUS_TONE[item.status] ?? 'neutral'}>{item.status}</Badge>
+          </div>
         </div>
 
-        {item.org_name && <p className="text-sm"><strong>Org:</strong> {item.org_name} · {item.reg_number}</p>}
-        {item.pan_masked && <p className="text-sm"><strong>PAN:</strong> {item.pan_masked} · <strong>Aadhaar:</strong> {item.aadhaar_masked}</p>}
-        {item.rejection_reason && (
-          <p className="rounded bg-bad-bg px-3 py-1 text-xs text-bad-ink"><strong>Reason:</strong> {item.rejection_reason}</p>
-        )}
+        <dl className="grid gap-2 sm:grid-cols-2">
+          {item.reg_number && <Detail label="Registration">{item.reg_number}</Detail>}
+          {item.entity_name && item.type !== 'ngo' && <Detail label="Business name">{item.entity_name}</Detail>}
+          {item.pan_masked && <Detail label="PAN (masked)">{item.pan_masked}</Detail>}
+          {item.aadhaar_masked && <Detail label="Aadhaar (masked)">{item.aadhaar_masked}</Detail>}
+          {item.fssai_number && <Detail label="FSSAI number">{item.fssai_number}</Detail>}
+          <Detail label="Submitted">{new Date(item.submitted_at).toLocaleString()}</Detail>
+        </dl>
 
-        <p className="text-xs text-muted">Submitted {new Date(item.submitted_at).toLocaleString()}</p>
-
+        <RejectionBanner reason={item.rejection_reason} label="Reason" />
         <ServerAlert msg={msg} />
 
         <div className="flex flex-wrap gap-2">
-          {item.document_id && (
-            <Button variant="ghost" onClick={() => setDocId(item.document_id)}>View document</Button>
-          )}
+          {docs.map((d) => (
+            <Button key={d.id} variant="ghost" onClick={() => setDocId(d.id)}>
+              {`View ${d.label ?? 'document'}`}
+            </Button>
+          ))}
           {isPending && (
             <>
-              <Button variant="primary" disabled={busy} onClick={() => decide('approve')}>Approve</Button>
+              <Button variant="brand" disabled={busy} onClick={() => decide('approve')}>Approve</Button>
               <Button variant="dark" disabled={busy} onClick={() => setRejectOpen(true)}>Reject</Button>
             </>
           )}
@@ -183,15 +135,12 @@ function VerificationCard({ item, onDecide }) {
         busy={busy}
       />
 
-      <DocumentModal docId={docId} onClose={() => setDocId(null)} />
+      <DocumentModal docId={docId} fetchUrl={fetchDocumentUrl} filename="verification-document" onClose={() => setDocId(null)} />
     </>
   )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-const STATUSES = ['', 'pending', 'approved', 'rejected']
-const TYPES = ['', 'provider_step1', 'provider_step2', 'ngo']
-
 export default function AdminVerificationsPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -203,8 +152,7 @@ export default function AdminVerificationsPage() {
     setLoading(true)
     setPageError('')
     try {
-      const data = await listVerifications({ status: statusFilter || undefined, type: typeFilter || undefined })
-      setItems(data)
+      setItems(await listVerifications({ status: statusFilter || undefined, type: typeFilter || undefined }))
     } catch (err) {
       setPageError(err.detail ?? err.message ?? 'Failed to load verifications')
     } finally {
@@ -220,52 +168,36 @@ export default function AdminVerificationsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <h1 className="text-3xl font-bold">Verification queue</h1>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-muted" htmlFor="status-filter">Status</label>
-          <select
-            id="status-filter"
-            className="mt-1 rounded-md border border-line bg-canvas px-3 py-1.5 text-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+    <Page title="Verification queue" subtitle={SUBTITLE} width="max-w-4xl">
+      <div className="mb-8 flex flex-wrap items-end gap-4">
+        <label className={labelCls}>
+          Status
+          <select className={`${filterCls} block`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             {STATUSES.map((s) => <option key={s} value={s}>{s || 'All'}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-muted" htmlFor="type-filter">Type</label>
-          <select
-            id="type-filter"
-            className="mt-1 rounded-md border border-line bg-canvas px-3 py-1.5 text-sm"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
+        </label>
+        <label className={labelCls}>
+          Type
+          <select className={`${filterCls} block normal-case`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             {TYPES.map((t) => <option key={t} value={t}>{t ? (TYPE_LABEL[t] ?? t) : 'All'}</option>)}
           </select>
-        </div>
-        <div className="flex items-end">
-          <Button variant="ghost" onClick={load}>Refresh</Button>
-        </div>
+        </label>
+        <Button variant="ghost" onClick={load}>Refresh</Button>
       </div>
 
-      {pageError && <p role="alert" className="rounded-md bg-bad-bg px-4 py-2 text-sm text-bad-ink">{pageError}</p>}
+      {pageError && <p role="alert" className="mb-6 rounded-[6px] bg-bad-bg px-4 py-3 text-sm text-bad-ink">{pageError}</p>}
 
       {loading
         ? <LoadingState label="Loading verifications…" />
         : items.length === 0
           ? <EmptyState title="Nothing here">No verifications match the current filters.</EmptyState>
           : (
-            <div className="space-y-4">
+            <div className="grid gap-3">
               {items.map((item) => (
                 <VerificationCard key={item.id} item={item} onDecide={handleDecide} />
               ))}
             </div>
-          )
-      }
-    </main>
+          )}
+    </Page>
   )
 }

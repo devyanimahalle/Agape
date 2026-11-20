@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_verified_role
-from app.db.models import Listing, User
+from app.db.models import Listing, ProviderProfile, User
 from app.db.session import get_db
 from app.errors import AppError
 from app.listings.schemas import ListingCreate, ListingPatch
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 STATUSES = {"listed", "reserved", "completed", "cancelled", "expired"}
 
-# Provider must be a verified restaurant/caterer, or a general provider.
+# Every provider (restaurant, caterer or general) must be admin-approved before creating or viewing listings.
 provider_dep = require_verified_role("provider")
 
 
@@ -72,6 +72,19 @@ def my_listings(
         stmt = stmt.where(Listing.status == status)
     rows = db.scalars(stmt.order_by(Listing.created_at.desc(), Listing.id.desc())).all()
     return [listing_out(r) for r in rows]
+
+
+@router.get("/available")
+def available_listings(user: User = Depends(provider_dep), db: Session = Depends(get_db)):
+    """Open listings from the other donors (what NGOs can see on the board), so a donor can see the platform."""
+    now = datetime.now(timezone.utc)
+    rows = db.execute(
+        select(Listing, ProviderProfile.org_name)
+        .join(ProviderProfile, ProviderProfile.user_id == Listing.provider_id)
+        .where(Listing.status == "listed", Listing.window_end > now, Listing.provider_id != user.id)
+        .order_by(Listing.created_at.desc(), Listing.id.desc())
+    ).all()
+    return [{**listing_out(listing), "org_name": org_name} for listing, org_name in rows]
 
 
 @router.patch("/{listing_id}")

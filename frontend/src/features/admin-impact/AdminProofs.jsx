@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Button, EmptyState, LoadingState } from '../../components/ui';
 import { fetchProofs, reviewProof } from './api';
+import Page from './components/Page';
 import ProofCard from './components/ProofCard';
+import Toast from './components/Toast';
 
 const FILTERS = [
   { label: 'All', value: null },
@@ -45,10 +48,7 @@ export default function AdminProofs() {
         stars: decision === 'approved' ? stars : null,
         comment: comment || null,
       });
-      showToast(
-        `Proof #${proofId} ${decision} successfully!`,
-        decision === 'approved' ? 'success' : 'info'
-      );
+      showToast(`Proof #${proofId} ${decision} successfully.`, decision === 'approved' ? 'success' : 'info');
       await loadProofs(activeFilter);
     } catch (err) {
       showToast(`Failed to review proof: ${err.message}`, 'error');
@@ -56,94 +56,47 @@ export default function AdminProofs() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${
-            toast.type === 'success'
-              ? 'bg-green-600'
-              : toast.type === 'error'
-                ? 'bg-red-600'
-                : 'bg-blue-600'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
+    <Page title="Proof review" subtitle="Review the proof of donation NGOs upload after a pickup.">
+      <Toast toast={toast} />
 
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Proof Review</h1>
-        <p className="text-gray-500 mt-1">
-          Review pickup proofs submitted by NGOs
-        </p>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div role="group" aria-label="Filter by review status" className="mb-8 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
-          <button
+          <Button
             key={f.label}
+            variant={activeFilter === f.value ? 'brand' : 'dark'}
+            aria-pressed={activeFilter === f.value}
             onClick={() => setActiveFilter(f.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeFilter === f.value
-                ? 'bg-green-600 text-white shadow-sm'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
+            className="!px-4 !py-2"
           >
             {f.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex items-center justify-center py-16">
-          <div className="text-center">
-            <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-gray-500">Loading proofs...</p>
-          </div>
-        </div>
-      )}
+      {loading && <LoadingState label="Loading proofs…" />}
 
-      {/* Error State */}
       {!loading && error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <p className="text-red-600 font-semibold mb-2">
-            Failed to load proofs
-          </p>
-          <p className="text-sm text-red-500">{error}</p>
-          <button
-            onClick={() => loadProofs(activeFilter)}
-            className="mt-3 text-sm text-red-600 underline hover:text-red-800"
-          >
-            Try again
-          </button>
-        </div>
+        <EmptyState
+          title="Failed to load proofs"
+          action={<Button variant="dark" onClick={() => loadProofs(activeFilter)}>Try again</Button>}
+        >
+          {error}
+        </EmptyState>
       )}
 
-      {/* Empty State */}
       {!loading && !error && proofs.length === 0 && (
-        <div className="bg-gray-50 rounded-xl p-10 text-center">
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-gray-500 font-medium">No proofs found</p>
-          <p className="text-sm text-gray-400 mt-1">
-            {activeFilter
-              ? `No ${activeFilter} proofs at the moment.`
-              : 'No proofs have been submitted yet.'}
-          </p>
-        </div>
+        <EmptyState title="No proofs found">
+          {activeFilter ? `No ${activeFilter} proofs at the moment.` : 'No proofs have been submitted yet.'}
+        </EmptyState>
       )}
 
-      {/* Proof Cards */}
       {!loading && !error && proofs.length > 0 && (
-        <div className="space-y-5">
+        <div className="grid gap-3">
           {proofs.map((proof) => (
             <ProofCard key={proof.id} proof={proof} onReview={handleReview} />
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

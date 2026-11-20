@@ -62,8 +62,7 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
     try:
         db.flush()  # assigns user.id; raises on unique-email race
         if body.role == "provider":
-            # general providers need no verification (contract rule 1)
-            status = "approved" if body.category == "general" else "pending"
+            status = "pending"  # every provider is verified by an admin before listing food
             db.add(
                 ProviderProfile(
                     user_id=user.id,

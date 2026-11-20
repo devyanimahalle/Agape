@@ -1,86 +1,52 @@
+import { Card } from '../../../components/ui';
+
+function Bar({ label, value, pct, cls }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-24 shrink-0 text-xs text-muted">{label}</span>
+      <div className="h-4 flex-1 rounded-[3px] bg-canvas">
+        <div className={`h-full rounded-[3px] ${cls}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+      </div>
+      <span className="w-16 shrink-0 text-right text-sm font-semibold">{value.toLocaleString()}</span>
+    </div>
+  );
+}
+
+const formatMonth = (monthStr) => {
+  const [year, month] = monthStr.split('-');
+  return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short', year: 'numeric' });
+};
+
+// Paired bars per month: ink = estimated meals, orange = kg. Values are printed beside each bar (not colour-only).
 export default function MonthChart({ data = [] }) {
   if (!data.length) {
-    return (
-      <div className="text-center text-gray-400 py-8">
-        No monthly data available.
-      </div>
-    );
+    return <p className="text-muted">No monthly data available.</p>;
   }
 
   const maxMeals = Math.max(...data.map((d) => d.meals), 1);
   const maxKg = Math.max(...data.map((d) => d.kg), 1);
 
-  const formatMonth = (monthStr) => {
-    const [year, month] = monthStr.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
-  };
-
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-800 mb-1">
-        Monthly Impact Trend
-      </h3>
-      <p className="text-xs text-amber-600 font-medium mb-6">
-        ⚠️ Estimates (0.4 kg per meal)
-      </p>
+    <Card as="section" aria-label="Monthly impact trend" className="p-7 md:p-9">
+      <h2 className="text-3xl md:text-4xl">Monthly trend</h2>
+      <p className="mt-2 text-xs text-muted">Estimates, based on 0.4 kg per meal.</p>
 
-      <div className="flex items-center gap-6 mb-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-3 rounded bg-green-500" />
-          <span className="text-gray-600">Meals</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-3 rounded bg-blue-500" />
-          <span className="text-gray-600">Kilograms</span>
-        </div>
+      <div className="mt-5 flex flex-wrap gap-5 text-xs font-semibold uppercase tracking-[1px]">
+        <span className="flex items-center gap-2"><span className="h-3 w-5 rounded-[3px] bg-ink" />Estimated meals</span>
+        <span className="flex items-center gap-2"><span className="h-3 w-5 rounded-[3px] bg-brand-bright" />Kilograms</span>
       </div>
 
-      <div className="space-y-5">
+      <div className="mt-6 space-y-6">
         {data.map((item) => (
           <div key={item.month}>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              {formatMonth(item.month)}
-            </p>
-
-            {/* Meals bar */}
-            <div className="flex items-center gap-3 mb-1.5">
-              <span className="text-xs text-gray-500 w-12 text-right">
-                Meals
-              </span>
-              <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                <div
-                  className="bg-green-500 h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
-                  style={{
-                    width: `${Math.max((item.meals / maxMeals) * 100, 8)}%`,
-                  }}
-                >
-                  <span className="text-xs text-white font-semibold">
-                    {item.meals.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Kg bar */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500 w-12 text-right">kg</span>
-              <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
-                  style={{
-                    width: `${Math.max((item.kg / maxKg) * 100, 8)}%`,
-                  }}
-                >
-                  <span className="text-xs text-white font-semibold">
-                    {item.kg.toLocaleString()}
-                  </span>
-                </div>
-              </div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[1px]">{formatMonth(item.month)}</p>
+            <div className="space-y-1.5">
+              <Bar label="Meals (est.)" value={item.meals} pct={(item.meals / maxMeals) * 100} cls="bg-ink" />
+              <Bar label="Kg" value={item.kg} pct={(item.kg / maxKg) * 100} cls="bg-brand-bright" />
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

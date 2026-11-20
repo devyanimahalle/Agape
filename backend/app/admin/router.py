@@ -41,6 +41,24 @@ async def list_users(
     return service.get_users(db)
 
 
+@router.post("/users/reset", response_model=schemas.DeleteResult)
+async def reset_users(
+    db: Session = Depends(get_db),
+    admin=Depends(require_role("admin")),
+):
+    """Delete every donor and NGO account and their data. Admin accounts are kept."""
+    return service.reset_accounts(db, admin.id)
+
+
+@router.delete("/users/{user_id}", response_model=schemas.DeleteResult)
+async def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(require_role("admin")),
+):
+    return service.delete_user(db, user_id, admin.id)
+
+
 @router.patch("/users/{user_id}", response_model=schemas.UserOut)
 async def patch_user(
     user_id: int,

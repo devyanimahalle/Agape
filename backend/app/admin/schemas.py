@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from enum import Enum
 
@@ -54,6 +54,10 @@ class UserOut(BaseModel):
 
 class UserPatch(BaseModel):
     is_active: bool
+
+
+class DeleteResult(BaseModel):
+    deleted: int
 
 
 # --- Proofs ---

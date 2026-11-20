@@ -68,3 +68,61 @@
   .agape-rise, .reveal { animation: none; }
   .press, .press:hover, .press:active { transform: none; transition: none; }
 }
+
+/* Navigation: the active route (aria-current) is underlined; hovering any link previews the underline. */
+.nav-link { position: relative; transition: color 0.18s; }
+.nav-link::after {
+  content: ''; position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.05rem; height: 3px;
+  background: var(--color-brand-bright); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.nav-link:hover { color: var(--color-brand-bright); }
+.nav-link:hover::after { transform: scaleX(0.45); }
+.nav-link[aria-current='page'] { color: var(--color-canvas); }
+.nav-link[aria-current='page']::after { transform: scaleX(1); }
+
+/* Cards that stand for one item (<article>) lift slightly on hover. `translate` is its own property, so it does not
+   fight the entry animations that use `transform`. */
+.card-lift { transition: translate 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.card-lift:hover { translate: 0 -3px; }
+
+/* Fields ease between the cream and white fills instead of snapping. */
+input, select, textarea { transition: background-color 0.18s; }
+
+/* Cursor dot: a lagging orange dot (positioned from JS). It never takes pointer events, grows over controls, and is
+   removed on touch, coarse pointers and under reduced motion. The ink ring keeps it visible on the orange bands. */
+.cursor-dot { position: fixed; top: 0; left: 0; z-index: 9999; width: 0; height: 0; pointer-events: none; }
+.cursor-dot-inner {
+  position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 999px;
+  background: var(--color-brand-bright); opacity: 0.9; box-shadow: none; border: 2px solid var(--color-ink);
+  box-sizing: border-box; pointer-events: none;
+  transform: scale(0.4); transition: transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.2s;
+}
+.cursor-dot[data-visible='false'] .cursor-dot-inner { opacity: 0; }
+.cursor-dot[data-visible='true'] .cursor-dot-inner { transform: scale(1); }
+.cursor-dot[data-visible='true'][data-hover='true'] .cursor-dot-inner { transform: scale(2); opacity: 0.45; }
+.cursor-dot[data-visible='true'][data-down='true'] .cursor-dot-inner { transform: scale(0.75); }
+@media (hover: none), (pointer: coarse) { .cursor-dot { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cursor-dot { display: none; }
+  .nav-link::after, .card-lift, input, select, textarea { transition: none; }
+  .card-lift:hover { translate: none; }
+}
+
+/* Hero pickup visual: the three stages light up one after another (3s each), and the window bar fills over the same
+   9s loop. Rows are unlit until their turn. Static under reduced motion (first stage lit, bar part-filled). */
+@keyframes agape-stage {
+  0%, 28% { background: var(--color-brand-bright); color: var(--color-ink); }
+  34%, 100% { background: var(--color-toast); color: var(--color-canvas); }
+}
+@keyframes agape-window {
+  0% { transform: scaleX(0.04); }
+  90%, 100% { transform: scaleX(1); }
+}
+.pickup-stage { background: var(--color-toast); color: var(--color-canvas); animation: agape-stage 9s linear infinite; animation-delay: calc(var(--i, 0) * 3s); }
+.pickup-fill { transform-origin: left; animation: agape-window 9s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pickup-stage, .pickup-fill { animation: none; }
+  .pickup-stage:first-child { background: var(--color-brand-bright); color: var(--color-ink); }
+  .pickup-fill { transform: scaleX(0.6); }
+}

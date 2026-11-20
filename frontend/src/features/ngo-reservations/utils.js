@@ -50,7 +50,7 @@ export function isRateable(category) {
 
 /** Returns an error message, or null when the selection is acceptable. */
 export function validateProofFiles(files) {
-  if (!files || files.length === 0) return 'Add at least one proof (a photo or a letter).'
+  if (!files || files.length === 0) return 'Add at least one proof of donation (a photo, a signed sheet or a receipt).'
   for (const f of files) {
     if (!(ALLOWED_TYPES.includes(f.type) || ALLOWED_EXT.test(f.name))) {
       return `${f.name}: only PDF, JPG or PNG files are allowed.`

@@ -29,7 +29,7 @@ export default function PinMap({ lat, lng, onMove }) {
     [onMove],
   )
   return (
-    <div className="h-64 overflow-hidden rounded border" data-testid="pin-map">
+    <div className="h-64 overflow-hidden rounded-card" data-testid="pin-map">
       <MapContainer center={[lat, lng]} zoom={14} className="h-full w-full">
         <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
         <Recenter position={[lat, lng]} />

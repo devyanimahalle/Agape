@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Button, Card } from '../../components/ui'
+import PageHeader from '../../components/PageHeader'
 import * as api from './api'
-import CompleteDialog from './components/CompleteDialog'
 import ConfirmDialog from './components/ConfirmDialog'
 import RateDialog from './components/RateDialog'
 import ReservationCard from './components/ReservationCard'
-import { isRateable } from './utils'
 
 const TABS = [
   { id: '', label: 'All' },
@@ -12,13 +13,15 @@ const TABS = [
   { id: 'completed', label: 'Completed' },
 ]
 
-/** /ngo/reservations — cancel, complete pickup with proof, rate the provider. */
+/** /ngo/reservations: cancel, confirm a pickup (one click, then proof of donation on its own page), rate the provider. */
 export default function NgoReservationsPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [tab, setTab] = useState('')
   const [rows, setRows] = useState([])
   const [state, setState] = useState('loading')
   const [error, setError] = useState(null)
-  const [notice, setNotice] = useState(null)
+  const [notice, setNotice] = useState(() => (location.state?.notice ? { kind: 'success', text: location.state.notice } : null))
   const [cancelTarget, setCancelTarget] = useState(null)
   const [completeTarget, setCompleteTarget] = useState(null)
   const [rateTarget, setRateTarget] = useState(null)
@@ -56,13 +59,20 @@ export default function NgoReservationsPage() {
     }
   }
 
-  async function submitComplete(files, note) {
+  // One click: record the pickup, then go straight to the proof of donation page.
+  async function confirmPickup() {
     const target = completeTarget
-    await api.completePickup(target.id, files, note) // errors surface inside the dialog
-    setCompleteTarget(null)
-    setNotice({ kind: 'success', text: `Pickup of “${target.title}” recorded. Thank you!` })
-    await load()
-    if (isRateable(target.provider_category)) setRateTarget({ ...target, status: 'completed' })
+    setBusy(true)
+    setDialogError(null)
+    try {
+      await api.completePickup(target.id)
+      setCompleteTarget(null)
+      navigate(`/ngo/pickups/${target.id}/proof`, { state: { justConfirmed: true } })
+    } catch (err) {
+      setDialogError(err.detail ?? 'Could not confirm the pickup.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function submitRating(body) {
@@ -78,40 +88,38 @@ export default function NgoReservationsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">My reservations</h1>
-          <p className="text-sm text-gray-600"><a className="underline" href="/ngo">Back to the board</a></p>
-        </div>
-        <div role="tablist" aria-label="Filter" className="flex overflow-hidden rounded border text-sm">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 ${tab === t.id ? 'bg-gray-800 text-white' : 'bg-white'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </header>
+    <main>
+      <PageHeader title="My reservations">
+        <a className="font-bold underline underline-offset-4" href="/ngo">Back to the board</a>
+      </PageHeader>
+      <div className="mx-auto max-w-6xl space-y-3 px-5 py-12 md:px-10 md:py-20">
+      <div role="tablist" aria-label="Filter" className="flex flex-wrap gap-1">
+        {TABS.map((t) => (
+          <Button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} variant={tab === t.id ? 'brand' : 'dark'} className="!px-5 !py-2">
+            {t.label}
+          </Button>
+        ))}
+      </div>
 
       {notice && (
-        <p role="status" className="rounded border border-green-300 bg-green-50 p-3 text-sm">{notice.text}</p>
+        <p role="status" className="rounded-card bg-ok-bg p-5 text-ok-ink">{notice.text}</p>
       )}
-      {state === 'loading' && <p>Loading…</p>}
+      {state === 'loading' && <p className="p-8 text-center text-muted">Loading…</p>}
       {state === 'error' && (
-        <div role="alert" className="rounded border border-red-300 bg-red-50 p-3">
+        <div role="alert" className="rounded-card bg-bad-bg p-6 text-bad-ink">
           <p>{error}</p>
-          <button type="button" onClick={load} className="mt-2 rounded border px-2 py-1 text-sm">Try again</button>
+          <Button variant="dark" onClick={load} className="mt-4 !px-4 !py-2">Try again</Button>
         </div>
       )}
-      {state === 'ready' && rows.length === 0 && <p>Nothing here yet. Reserve food from the board.</p>}
+      {state === 'ready' && rows.length === 0 && <Card><p>Nothing here yet. Reserve food from the board.</p></Card>}
       {state === 'ready' && (
-        <div className="grid gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
             <ReservationCard
               key={r.id}
               reservation={r}
               onCancel={(x) => { setDialogError(null); setCancelTarget(x) }}
-              onComplete={setCompleteTarget}
+              onComplete={(x) => { setDialogError(null); setCompleteTarget(x) }}
               onRate={setRateTarget}
             />
           ))}
@@ -130,9 +138,18 @@ export default function NgoReservationsPage() {
         />
       )}
       {completeTarget && (
-        <CompleteDialog listing={completeTarget} onSubmit={submitComplete} onCancel={() => setCompleteTarget(null)} />
+        <ConfirmDialog
+          title="Confirm pickup?"
+          message={`Confirm that you collected “${completeTarget.title}”. You will add proof of donation next.`}
+          confirmLabel="Confirm pickup"
+          busy={busy}
+          error={dialogError}
+          onConfirm={confirmPickup}
+          onCancel={() => setCompleteTarget(null)}
+        />
       )}
       {rateTarget && <RateDialog listing={rateTarget} onSubmit={submitRating} onCancel={() => setRateTarget(null)} />}
+      </div>
     </main>
   )
 }

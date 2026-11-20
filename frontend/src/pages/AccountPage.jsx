@@ -21,12 +21,12 @@ export default function AccountPage() {
   return (
     <main>
       <PageHeader title="Account">
-        {mock && <p className="inline-block rounded-[6px] bg-ink px-3 py-2 text-canvas">Demo mode: this is a sample session, not a real account.</p>}
+        {mock ? 'Demo mode: this is a sample session, not a real account.' : 'Your session and verification status.'}
       </PageHeader>
       <div className="mx-auto grid max-w-6xl gap-3 px-5 py-12 md:grid-cols-2 md:px-10 md:py-20">
-      <Card>
+      <Card className="p-7 md:p-9">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl">{user.name ?? 'Unnamed account'}</h2>
+          <h2 className="text-3xl md:text-4xl">{user.name ?? 'Unnamed account'}</h2>
           <Badge>{ROLE_LABEL[user.role] ?? user.role}</Badge>
         </div>
         <dl className="mt-5 grid gap-2">
@@ -36,8 +36,8 @@ export default function AccountPage() {
         </dl>
       </Card>
 
-      <Card aria-label="Verification">
-        <h2 className="text-2xl">Verification</h2>
+      <Card aria-label="Verification" className="p-7 md:p-9">
+        <h2 className="text-3xl md:text-4xl">Verification</h2>
         {verificationStatus ? (
           <p className="mt-3">
             <StatusPill status={PILL[verificationStatus] ?? verificationStatus} />
@@ -53,8 +53,8 @@ export default function AccountPage() {
       </Card>
 
       {profile && (
-        <Card aria-label="Organisation" className="md:col-span-2">
-          <h2 className="text-2xl">Organisation</h2>
+        <Card aria-label="Organisation" className="p-7 md:col-span-2 md:p-9">
+          <h2 className="text-3xl md:text-4xl">Organisation</h2>
           <dl className="mt-5 grid gap-2 md:grid-cols-2">
             {profile.org_name && <Row label="Name">{profile.org_name}</Row>}
             {profile.category && <Row label="Category">{profile.category}</Row>}

@@ -5,9 +5,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 try:
-    from app.db.models import Listing, User, NgoProfile, ProviderProfile
+    from app.db.models import Listing, User
 except ImportError:
-    from backend.app.db.models import Listing, User, NgoProfile, ProviderProfile
+    from backend.app.db.models import Listing, User
 
 
 @pytest.fixture()
@@ -37,6 +37,7 @@ def seed_impact_data(db_session: Session):
     db_session.flush()
 
     l1 = Listing(
+        window_start=datetime(2024, 1, 1, tzinfo=timezone.utc), window_end=datetime(2024, 1, 2, tzinfo=timezone.utc), address="1 Test Rd",
         id=500, provider_id=50, title="Meals A", food_type="rice",
         quantity=50.0, unit="kg", est_meals=100, est_kg=50.0,
         status="completed", reserved_by_ngo_id=60,
@@ -44,6 +45,7 @@ def seed_impact_data(db_session: Session):
         created_at=datetime(2024, 1, 10, tzinfo=timezone.utc),
     )
     l2 = Listing(
+        window_start=datetime(2024, 1, 1, tzinfo=timezone.utc), window_end=datetime(2024, 1, 2, tzinfo=timezone.utc), address="1 Test Rd",
         id=501, provider_id=50, title="Meals B", food_type="bread",
         quantity=80.0, unit="kg", est_meals=200, est_kg=80.0,
         status="completed", reserved_by_ngo_id=61,
@@ -51,6 +53,7 @@ def seed_impact_data(db_session: Session):
         created_at=datetime(2024, 1, 12, tzinfo=timezone.utc),
     )
     l3 = Listing(
+        window_start=datetime(2024, 1, 1, tzinfo=timezone.utc), window_end=datetime(2024, 1, 2, tzinfo=timezone.utc), address="1 Test Rd",
         id=502, provider_id=51, title="Meals C", food_type="curry",
         quantity=25.0, unit="portions", est_meals=50, est_kg=25.0,
         status="completed", reserved_by_ngo_id=60,
@@ -58,6 +61,7 @@ def seed_impact_data(db_session: Session):
         created_at=datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     l4 = Listing(
+        window_start=datetime(2024, 1, 1, tzinfo=timezone.utc), window_end=datetime(2024, 1, 2, tzinfo=timezone.utc), address="1 Test Rd",
         id=503, provider_id=51, title="Still Listed", food_type="fruit",
         quantity=10.0, unit="kg", est_meals=20, est_kg=10.0,
         status="listed",

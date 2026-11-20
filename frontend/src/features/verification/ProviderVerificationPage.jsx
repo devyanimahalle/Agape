@@ -1,117 +1,89 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Card, Badge, EmptyState, LoadingState, Modal } from '../../components/ui'
+import { Link } from 'react-router-dom'
+import { Button, Badge, Card, LoadingState } from '../../components/ui'
+import { getProviderVerification, submitProviderVerification } from './api'
+import Page from './components/Page'
 import {
-  getProviderVerification,
-  submitProviderStep1,
-  submitProviderStep2,
-} from './api'
+  FieldError, ServerAlert, RejectionBanner, STATUS_TONE, STATUS_LABEL,
+  inputCls, labelCls, fileCls,
+} from './components/fields'
 
-// ── Validators ────────────────────────────────────────────────────────────────
+// ── Validators (mirror the backend's checks) ──────────────────────────────────
 const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/
 const AADHAAR_RE = /^\d{12}$/
 const FSSAI_RE = /^\d{14}$/
 
-function validate1({ pan, aadhaar, fssai, category }) {
+function validate1({ entity, pan, aadhaar, file }) {
   const errs = {}
+  if (!entity) errs.entity = 'Business name is required'
+  if (!file) errs.file = 'Upload your business registration document'
   if (!PAN_RE.test(pan)) errs.pan = 'PAN must be 10 characters: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)'
   if (!AADHAAR_RE.test(aadhaar)) errs.aadhaar = 'Aadhaar must be exactly 12 digits'
-  if (fssai && !FSSAI_RE.test(fssai)) errs.fssai = 'FSSAI licence must be exactly 14 digits'
   return errs
 }
 
-// ── Step indicator ────────────────────────────────────────────────────────────
-const STATUS_TONE = { not_submitted: 'neutral', pending: 'warn', approved: 'ok', rejected: 'bad' }
-const STATUS_LABEL = { not_submitted: 'Not submitted', pending: 'Pending review', approved: 'Approved', rejected: 'Rejected' }
+function validate2({ fssai, file }) {
+  const errs = {}
+  if (!FSSAI_RE.test(fssai)) errs.fssai = 'FSSAI licence must be exactly 14 digits'
+  if (!file) errs.file = 'Upload your FSSAI certificate'
+  return errs
+}
 
+const FILE_HINT = 'PDF, JPG or PNG. Stored privately and only visible to admins.'
+
+// ── Step tabs ─────────────────────────────────────────────────────────────────
 function StepTab({ label, step, active, disabled, onClick }) {
   return (
-    <button
+    <Button
       role="tab"
       aria-selected={active}
       disabled={disabled}
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-t-md border-b-2 px-5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${active ? 'border-primary text-ink' : 'border-transparent text-muted hover:text-ink'}`}
+      variant={active ? 'brand' : 'dark'}
+      className="!px-5 !py-2"
     >
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-canvas text-xs font-bold">{step}</span>
-      {label}
-    </button>
+      {step}. {label}
+    </Button>
   )
 }
 
-function FieldError({ msg }) {
-  return msg ? <p className="mt-1 text-xs text-bad-ink">{msg}</p> : null
-}
-
-function ServerAlert({ msg }) {
-  return msg ? (
-    <p role="alert" className="rounded-md bg-bad-bg px-4 py-2 text-sm text-bad-ink">
-      {msg}
-    </p>
-  ) : null
-}
-
-function RejectionBanner({ reason }) {
-  if (!reason) return null
-  return (
-    <div className="rounded-md border border-bad-ink/20 bg-bad-bg px-4 py-3 text-sm text-bad-ink">
-      <strong>Rejected:</strong> {reason}
-    </div>
-  )
-}
-
-// ── Step 1 form ───────────────────────────────────────────────────────────────
-function Step1Form({ data, onSuccess }) {
-  const [pan, setPan] = useState('')
-  const [aadhaar, setAadhaar] = useState('')
-  const [fssai, setFssai] = useState('')
+// ── Step 1: identity and business. Nothing is sent yet; it is held until step 2 is submitted. ──
+function Step1Form({ draft, onContinue }) {
+  const [entity, setEntity] = useState(draft?.entity ?? '')
+  const [pan, setPan] = useState(draft?.pan ?? '')
+  const [aadhaar, setAadhaar] = useState(draft?.aadhaar ?? '')
+  const [file, setFile] = useState(draft?.file ?? null)
   const [fieldErrors, setFieldErrors] = useState({})
-  const [serverMsg, setServerMsg] = useState('')
-  const [busy, setBusy] = useState(false)
 
-  const isApproved = data?.step1?.status === 'approved'
-  const isPending = data?.step1?.status === 'pending'
-
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
-    const errs = validate1({ pan: pan.trim(), aadhaar: aadhaar.trim(), fssai: fssai.trim() })
+    const values = { entity: entity.trim(), pan: pan.trim(), aadhaar: aadhaar.trim(), file }
+    const errs = validate1(values)
     setFieldErrors(errs)
     if (Object.keys(errs).length) return
-    setBusy(true)
-    setServerMsg('')
-    try {
-      const result = await submitProviderStep1({ pan: pan.trim(), aadhaar: aadhaar.trim(), fssai: fssai.trim() || undefined })
-      onSuccess(result)
-    } catch (err) {
-      setServerMsg(err.detail ?? err.message ?? 'Something went wrong')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (isApproved) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted">Your identity documents have been verified.</p>
-        {data.step1.pan_masked && <p className="text-sm"><strong>PAN:</strong> {data.step1.pan_masked}</p>}
-        {data.step1.aadhaar_masked && <p className="text-sm"><strong>Aadhaar:</strong> {data.step1.aadhaar_masked}</p>}
-      </div>
-    )
-  }
-
-  if (isPending) {
-    return <p className="text-sm text-muted">Your submission is under review. We'll notify you once a decision is made.</p>
+    onContinue(values)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <RejectionBanner reason={data?.step1?.rejection_reason} />
-      <ServerAlert msg={serverMsg} />
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <div>
+        <label className={labelCls} htmlFor="entity">Business name *</label>
+        <input id="entity" className={inputCls} value={entity} onChange={(e) => setEntity(e.target.value)} placeholder="Ravi's Kitchen" autoComplete="organization" />
+        <FieldError msg={fieldErrors.entity} />
+      </div>
 
       <div>
-        <label className="block text-sm font-semibold" htmlFor="pan">PAN *</label>
+        <label className={labelCls} htmlFor="biz-proof">Business registration document *</label>
+        <input id="biz-proof" type="file" accept=".pdf,.jpg,.jpeg,.png" className={fileCls} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <p className="mt-1.5 text-xs text-muted">{file ? `Selected: ${file.name}. ` : ''}{FILE_HINT}</p>
+        <FieldError msg={fieldErrors.file} />
+      </div>
+
+      <div>
+        <label className={labelCls} htmlFor="pan">PAN *</label>
         <input
           id="pan"
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
+          className={`${inputCls} uppercase tracking-widest`}
           value={pan}
           onChange={(e) => setPan(e.target.value.toUpperCase())}
           placeholder="ABCDE1234F"
@@ -122,10 +94,10 @@ function Step1Form({ data, onSuccess }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold" htmlFor="aadhaar">Aadhaar number *</label>
+        <label className={labelCls} htmlFor="aadhaar">Aadhaar number *</label>
         <input
           id="aadhaar"
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
+          className={`${inputCls} tracking-widest`}
           value={aadhaar}
           onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, ''))}
           placeholder="123456789012"
@@ -133,48 +105,41 @@ function Step1Form({ data, onSuccess }) {
           autoComplete="off"
           inputMode="numeric"
         />
+        <p className="mt-1.5 text-xs text-muted">Only the last four digits are kept. The full number is never stored or shown.</p>
         <FieldError msg={fieldErrors.aadhaar} />
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold" htmlFor="fssai">FSSAI licence <span className="font-normal text-muted">(optional — restaurants &amp; caterers)</span></label>
-        <input
-          id="fssai"
-          className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"
-          value={fssai}
-          onChange={(e) => setFssai(e.target.value.replace(/\D/g, ''))}
-          placeholder="12345678901234"
-          maxLength={14}
-          autoComplete="off"
-          inputMode="numeric"
-        />
-        <FieldError msg={fieldErrors.fssai} />
-      </div>
-
-      <Button type="submit" variant="dark" disabled={busy}>
-        {busy ? 'Submitting…' : (data?.step1?.status === 'rejected' ? 'Resubmit' : 'Submit')}
-      </Button>
+      <Button type="submit" variant="brand">Continue to step 2</Button>
     </form>
   )
 }
 
-// ── Step 2 form ───────────────────────────────────────────────────────────────
-function Step2Form({ data, onSuccess }) {
+// ── Step 2: FSSAI. Submitting sends BOTH steps together as one request. ──
+function Step2Form({ draft, onBack, onSubmitted }) {
+  const [fssai, setFssai] = useState('')
   const [file, setFile] = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [serverMsg, setServerMsg] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const isPending = data?.step2?.status === 'pending'
-  const isApproved = data?.step2?.status === 'approved'
-
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!file) return
+    const values = { fssai: fssai.trim(), file }
+    const errs = validate2(values)
+    setFieldErrors(errs)
+    if (Object.keys(errs).length) return
     setBusy(true)
     setServerMsg('')
     try {
-      const result = await submitProviderStep2({ document: file })
-      onSuccess(result)
+      const result = await submitProviderVerification({
+        entity_name: draft.entity,
+        business_proof: draft.file,
+        pan: draft.pan,
+        aadhaar: draft.aadhaar,
+        fssai_number: values.fssai,
+        fssai_cert: file,
+      })
+      onSubmitted(result)
     } catch (err) {
       setServerMsg(err.detail ?? err.message ?? 'Something went wrong')
     } finally {
@@ -182,42 +147,67 @@ function Step2Form({ data, onSuccess }) {
     }
   }
 
-  if (isApproved) return <p className="text-sm text-muted">Your business document has been verified. You're all set!</p>
-  if (isPending) return <p className="text-sm text-muted">Your document is under review.</p>
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <RejectionBanner reason={data?.step2?.rejection_reason} />
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <p className="rounded-[6px] bg-canvas px-4 py-3 text-sm">
+        Step 1 is ready for <strong>{draft.entity}</strong>. Add the FSSAI details and submit once: an admin reviews
+        both steps together.
+      </p>
       <ServerAlert msg={serverMsg} />
+
       <div>
-        <label className="block text-sm font-semibold" htmlFor="biz-doc">Business registration document *</label>
+        <label className={labelCls} htmlFor="fssai">FSSAI licence number *</label>
         <input
-          id="biz-doc"
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
-          className="mt-1 block text-sm"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          id="fssai"
+          className={`${inputCls} tracking-widest`}
+          value={fssai}
+          onChange={(e) => setFssai(e.target.value.replace(/\D/g, ''))}
+          placeholder="12345678901234"
+          maxLength={14}
+          autoComplete="off"
+          inputMode="numeric"
         />
-        <p className="mt-1 text-xs text-muted">PDF, JPG, or PNG · max 5 MB</p>
+        <p className="mt-1.5 text-xs text-muted">The number gets a format check, then an admin reviews it. This is not an official FSSAI verification.</p>
+        <FieldError msg={fieldErrors.fssai} />
       </div>
-      <Button type="submit" variant="dark" disabled={busy || !file}>
-        {busy ? 'Uploading…' : (data?.step2?.status === 'rejected' ? 'Resubmit document' : 'Upload document')}
-      </Button>
+
+      <div>
+        <label className={labelCls} htmlFor="fssai-cert">FSSAI certificate *</label>
+        <input id="fssai-cert" type="file" accept=".pdf,.jpg,.jpeg,.png" className={fileCls} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <p className="mt-1.5 text-xs text-muted">{FILE_HINT}</p>
+        <FieldError msg={fieldErrors.file} />
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" variant="brand" disabled={busy}>{busy ? 'Submitting…' : 'Submit for review'}</Button>
+        <Button variant="ghost" onClick={onBack} disabled={busy}>Back to step 1</Button>
+      </div>
     </form>
   )
 }
 
+function Detail({ label, children }) {
+  return (
+    <div className="rounded-[6px] bg-canvas px-4 py-3">
+      <dt className="text-xs uppercase tracking-[1px] text-muted">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold">{children}</dd>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
+const SUBTITLE = 'Every donor is verified by an admin before listing food. One request covers your identity, business and FSSAI details.'
+
 export default function ProviderVerificationPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeStep, setActiveStep] = useState(1)
+  const [draft, setDraft] = useState(null)
 
   const load = useCallback(async () => {
     try {
-      const d = await getProviderVerification()
-      setData(d)
+      setData(await getProviderVerification())
     } catch (err) {
       setError(err.detail ?? err.message ?? 'Failed to load verification status')
     } finally {
@@ -227,66 +217,79 @@ export default function ProviderVerificationPage() {
 
   useEffect(() => { load() }, [load])
 
-  const step1Status = data?.step1?.status ?? 'not_submitted'
-  const step2Status = data?.step2?.status ?? 'not_submitted'
-  const step2Disabled = step1Status !== 'approved'
+  if (loading) return <Page title="Verification" subtitle={SUBTITLE} width="max-w-3xl"><LoadingState label="Loading verification status…" /></Page>
 
-  function handleSuccess(updated) {
-    setData(updated)
-  }
-
-  if (loading) return <LoadingState label="Loading verification status…" />
+  const status = data?.status ?? 'not_submitted'
+  const submitted = status === 'pending' || status === 'approved'
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-3xl font-bold">Provider Verification</h1>
+    <Page title="Verification" subtitle={SUBTITLE} width="max-w-3xl">
+      {error && <p role="alert" className="mb-6 rounded-[6px] bg-bad-bg px-4 py-3 text-sm text-bad-ink">{error}</p>}
 
-      <p className="text-sm text-muted">
-        <strong>Note:</strong> General (home kitchen) providers do not need verification.
-        Restaurant and caterer accounts complete two steps before listing food.
-      </p>
-
-      {error && <p role="alert" className="rounded-md bg-bad-bg px-4 py-2 text-sm text-bad-ink">{error}</p>}
-
-      {/* Overall status */}
       {data && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-muted">Overall status:</span>
-          <Badge tone={STATUS_TONE[data.overall] ?? 'neutral'}>{STATUS_LABEL[data.overall] ?? data.overall}</Badge>
+        <div className="mb-6 flex items-center gap-3">
+          <span className="text-xs font-semibold uppercase tracking-[1px] text-muted">Status</span>
+          <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_LABEL[status] ?? status}</Badge>
         </div>
       )}
 
-      {/* Step tabs */}
-      <div role="tablist" className="flex border-b border-line">
-        <StepTab label="Identity documents" step={1} active={activeStep === 1} disabled={false} onClick={() => setActiveStep(1)} />
-        <StepTab
-          label="Business document"
-          step={2}
-          active={activeStep === 2}
-          disabled={step2Disabled}
-          onClick={() => !step2Disabled && setActiveStep(2)}
-        />
-      </div>
+      {submitted ? (
+        <Card className="p-7 md:p-9">
+          <h2 className="text-3xl md:text-4xl">{status === 'approved' ? 'You are verified' : 'Under review'}</h2>
+          <p className="mt-3 text-sm text-muted">
+            {status === 'approved'
+              ? 'An admin approved your request. You can now list surplus food.'
+              : 'Your identity, business and FSSAI details were sent as one request. Listings unlock once an admin approves it.'}
+          </p>
+          <dl className="mt-5 grid gap-2 sm:grid-cols-2">
+            {data.entity_name && <Detail label="Business name">{data.entity_name}</Detail>}
+            {data.masked_pan && <Detail label="PAN">{data.masked_pan}</Detail>}
+            {data.masked_aadhaar && <Detail label="Aadhaar">{data.masked_aadhaar}</Detail>}
+            {data.fssai_number && <Detail label="FSSAI number">{data.fssai_number}</Detail>}
+          </dl>
+        </Card>
+      ) : (
+        <>
+          <div role="tablist" aria-label="Verification steps" className="mb-3 flex flex-wrap gap-2">
+            <StepTab label="Identity and business" step={1} active={activeStep === 1} onClick={() => setActiveStep(1)} />
+            <StepTab label="FSSAI licence" step={2} active={activeStep === 2} disabled={!draft} onClick={() => draft && setActiveStep(2)} />
+          </div>
 
-      {/* Step content */}
-      <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {activeStep === 1 ? 'Step 1 — Identity documents' : 'Step 2 — Business document'}
-          </h2>
-          <Badge tone={STATUS_TONE[activeStep === 1 ? step1Status : step2Status]}>
-            {STATUS_LABEL[activeStep === 1 ? step1Status : step2Status]}
-          </Badge>
+          <Card className="p-7 md:p-9">
+            <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-3xl md:text-4xl">
+                {activeStep === 1 ? 'Step 1: Identity and business' : 'Step 2: FSSAI licence'}
+              </h2>
+              <Badge tone={draft && activeStep === 1 ? 'ok' : 'neutral'}>
+                {activeStep === 1 ? (draft ? 'Ready' : 'To do') : 'Last step'}
+              </Badge>
+            </div>
+
+            <div className="space-y-5">
+              {status === 'rejected' && <RejectionBanner reason={data?.rejection_reason || 'Your last request was not approved. Please resubmit.'} />}
+              {activeStep === 1 ? (
+                <Step1Form draft={draft} onContinue={(values) => { setDraft(values); setActiveStep(2) }} />
+              ) : (
+                <Step2Form draft={draft} onBack={() => setActiveStep(1)} onSubmitted={setData} />
+              )}
+            </div>
+          </Card>
+
+          {!draft && <p className="mt-4 text-sm text-muted">Step 2 unlocks once step 1 is complete.</p>}
+        </>
+      )}
+
+      <Card className="mt-8 flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl">Surplus listings</h2>
+          <p className="mt-1 text-sm text-muted">
+            {status === 'approved' ? 'Post the food you have to give and see what you have listed.' : 'Listings unlock after an admin approves your request.'}
+          </p>
         </div>
-
-        {activeStep === 1
-          ? <Step1Form data={data} onSuccess={handleSuccess} />
-          : <Step2Form data={data} onSuccess={handleSuccess} />}
+        <Link to="/provider/listings" className="press rounded-[6px] bg-ink px-6 py-3 text-sm font-bold uppercase tracking-[1px] text-canvas hover:bg-toast">
+          Open listings
+        </Link>
       </Card>
-
-      {step2Disabled && activeStep === 2 && (
-        <p role="alert" className="text-sm text-muted">Step 2 is available only after Step 1 is approved.</p>
-      )}
-    </main>
+    </Page>
   )
 }

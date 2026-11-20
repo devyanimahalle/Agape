@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ListingOut(BaseModel):
@@ -26,6 +26,13 @@ class ListingOut(BaseModel):
     completed_at: datetime | None
     created_at: datetime
 
+    @field_validator("window_start", "window_end", "reserved_at", "completed_at", "created_at", mode="after")
+    @classmethod
+    def _utc(cls, v: datetime | None) -> datetime | None:
+        """SQLite hands datetimes back naive (they are stored as UTC). Serialise them as UTC so a browser does not
+        read them as local time, which hid listings hours early in timezones ahead of UTC."""
+        return v if v is None or v.tzinfo else v.replace(tzinfo=timezone.utc)
+
 
 class BoardListingOut(ListingOut):
     distance_km: float | None
@@ -39,6 +46,15 @@ class ReservationOut(ListingOut):
     org_name: str
     provider_category: str
     has_rated: bool
+    proof_status: str = "none"  # none | pending | approved | rejected: state of the proof of donation
+    proof_count: int = 0
+
+
+class ProofSubmittedOut(BaseModel):
+    listing_id: int
+    added: int
+    proof_status: str
+    proof_count: int
 
 
 class GeocodeOut(BaseModel):

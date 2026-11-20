@@ -5,6 +5,7 @@ import { api, setToken, getToken, USE_MOCKS } from '../lib/api'
 export const ROLES = ['provider', 'ngo', 'admin']
 export const ROLE_LABEL = { provider: 'Donor', ngo: 'NGO', admin: 'Admin' }
 const MOCK_KEY = 'agape_mock_role'
+const MOCK_SIGNED_IN_KEY = 'agape_mock_signed_in'
 
 const MOCK_USERS = {
   provider: { id: 'mock-provider', name: 'Demo Donor', role: 'provider' },
@@ -34,8 +35,18 @@ function readMockRole() {
   }
 }
 
+// Demo mode has a real signed-in/out state too, so the public landing page and the sign-in flow can be shown.
+function readMockSignedIn() {
+  try {
+    return localStorage.getItem(MOCK_SIGNED_IN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function AuthProvider({ children }) {
   const [mockRole, setMockRoleState] = useState(readMockRole)
+  const [mockSignedIn, setMockSignedIn] = useState(readMockSignedIn)
   const [session, setSession] = useState(EMPTY)
   const [loading, setLoading] = useState(!USE_MOCKS)
 
@@ -66,6 +77,17 @@ export function AuthProvider({ children }) {
     try { localStorage.setItem(MOCK_KEY, r) } catch { /* ignore */ }
   }, [])
 
+  // Demo mode: sign in as this role (the real equivalent is login + refresh()).
+  const mockSignIn = useCallback((r) => {
+    if (!ROLES.includes(r)) return
+    setMockRoleState(r)
+    setMockSignedIn(true)
+    try {
+      localStorage.setItem(MOCK_KEY, r)
+      localStorage.setItem(MOCK_SIGNED_IN_KEY, '1')
+    } catch { /* ignore */ }
+  }, [])
+
   // Re-read the session from /auth/me (call after setToken() on login). Returns the user.
   const refresh = useCallback(async () => {
     const next = parseMe(await api('/auth/me'))
@@ -76,21 +98,24 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setToken(null)
     setSession(EMPTY)
+    setMockSignedIn(false)
+    try { localStorage.removeItem(MOCK_SIGNED_IN_KEY) } catch { /* ignore */ }
   }, [])
 
   const value = useMemo(
     () => ({
-      user: USE_MOCKS ? MOCK_USERS[mockRole] : session.user,
+      user: USE_MOCKS ? (mockSignedIn ? MOCK_USERS[mockRole] : null) : session.user,
       profile: USE_MOCKS ? null : session.profile,
       verificationStatus: USE_MOCKS ? null : session.verificationStatus,
       loading: USE_MOCKS ? false : loading,
       mock: USE_MOCKS,
       mockRole,
       setMockRole,
+      mockSignIn,
       refresh,
       logout,
     }),
-    [session, loading, mockRole, setMockRole, refresh, logout],
+    [session, loading, mockRole, mockSignedIn, setMockRole, mockSignIn, refresh, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

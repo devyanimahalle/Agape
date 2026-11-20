@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import ProviderVerificationPage from '../ProviderVerificationPage'
@@ -8,30 +9,38 @@ import AdminVerificationsPage from '../AdminVerificationsPage'
 vi.mock('../api')
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-const notSubmitted = () => ({
-  step1: { status: 'not_submitted', rejection_reason: null },
-  step2: { status: 'not_submitted', rejection_reason: null },
-  overall: 'not_submitted',
-})
-const step1Pending = () => ({
-  step1: { status: 'pending', rejection_reason: null },
-  step2: { status: 'not_submitted', rejection_reason: null },
-  overall: 'pending',
-})
-const step1Approved = () => ({
-  step1: { status: 'approved', rejection_reason: null, pan_masked: 'AB***Z', aadhaar_masked: '****5678' },
-  step2: { status: 'not_submitted', rejection_reason: null },
-  overall: 'pending',
-})
-const step1Rejected = () => ({
-  step1: { status: 'rejected', rejection_reason: 'PAN does not match records' },
-  step2: { status: 'not_submitted', rejection_reason: null },
-  overall: 'rejected',
-})
+const notSubmitted = () => ({ status: 'not_submitted', rejection_reason: null })
+const pending = () => ({ status: 'pending', rejection_reason: null, entity_name: "Ravi's Kitchen", masked_pan: 'XXXXX1234F', masked_aadhaar: 'XXXX-XXXX-1098', fssai_number: '11112222333344' })
+const approved = () => ({ ...pending(), status: 'approved' })
+const rejected = () => ({ status: 'rejected', rejection_reason: 'PAN does not match records' })
+
 const mockVerifications = () => [
-  { id: 1, type: 'provider_step1', status: 'pending', user_id: 101, user_email: 'ravi@demo.com', submitted_at: new Date().toISOString(), document_id: 'doc-1', pan_masked: 'AB***Z', aadhaar_masked: '****5678' },
-  { id: 2, type: 'ngo', status: 'pending', user_id: 202, user_email: 'asha@ngo.demo', submitted_at: new Date().toISOString(), document_id: 'doc-2', org_name: 'Asha Foundation', reg_number: 'REG/001' },
+  {
+    id: 1, type: 'provider', status: 'pending', user_id: 101, user_email: 'ravi@demo.com', org_name: 'Ravi Kitchen', entity_name: "Ravi's Kitchen",
+    submitted_at: new Date().toISOString(), pan_masked: 'XXXXX1234F', aadhaar_masked: 'XXXX-XXXX-1098', fssai_number: '11112222333344',
+    documents: [{ id: 11, kind: 'business_proof', label: 'Business registration' }, { id: 12, kind: 'fssai_cert', label: 'FSSAI certificate' }],
+  },
+  {
+    id: 2, type: 'ngo', status: 'pending', user_id: 202, user_email: 'asha@ngo.demo', submitted_at: new Date().toISOString(),
+    documents: [{ id: 21, kind: 'ngo_reg', label: 'NGO registration' }], org_name: 'Asha Foundation', reg_number: 'REG/001',
+  },
 ]
+
+const bizFile = (name = 'biz.pdf') => new File(['%PDF-1.4'], name, { type: 'application/pdf' })
+const renderProvider = () => render(<MemoryRouter><ProviderVerificationPage /></MemoryRouter>)
+
+async function fillStep1({ pan = 'ABCDE1234F', aadhaar = '987654321098' } = {}) {
+  await userEvent.type(await screen.findByLabelText(/Business name/), "Ravi's Kitchen")
+  await userEvent.upload(screen.getByLabelText(/Business registration document/), bizFile())
+  await userEvent.type(screen.getByLabelText('PAN *'), pan)
+  await userEvent.type(screen.getByLabelText(/Aadhaar number/), aadhaar)
+}
+
+async function goToStep2() {
+  await fillStep1()
+  await userEvent.click(screen.getByRole('button', { name: 'Continue to step 2' }))
+  return screen.findByLabelText(/FSSAI licence number/)
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -40,118 +49,155 @@ beforeEach(() => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProviderVerificationPage
+// ProviderVerificationPage: one wizard, one request
 // ─────────────────────────────────────────────────────────────────────────────
-describe('ProviderVerificationPage — stepper states', () => {
-  it('shows step 1 form when not submitted', async () => {
-    render(<ProviderVerificationPage />)
+describe('ProviderVerificationPage: wizard', () => {
+  it('starts on step 1 and keeps step 2 locked', async () => {
+    renderProvider()
     expect(await screen.findByLabelText('PAN *')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Aadhaar number/)).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /FSSAI licence/i })).toBeDisabled()
   })
 
-  it('step 2 tab is disabled when step 1 is not approved', async () => {
-    api.getProviderVerification.mockResolvedValue(notSubmitted())
-    render(<ProviderVerificationPage />)
-    await screen.findByLabelText('PAN *')
-    const step2Tab = screen.getByRole('tab', { name: /Step 2|Business document/i })
-    expect(step2Tab).toBeDisabled()
+  it('continuing from step 1 sends nothing and opens step 2', async () => {
+    renderProvider()
+    await goToStep2()
+    expect(api.submitProviderVerification).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: /FSSAI licence/i })).not.toBeDisabled()
+    expect(screen.getByText(/reviews both steps together/i)).toBeInTheDocument()
   })
 
-  it('step 2 tab is disabled when step 1 is pending', async () => {
-    api.getProviderVerification.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
-    await screen.findByText(/under review/i)
-    const step2Tab = screen.getByRole('tab', { name: /Step 2|Business document/i })
-    expect(step2Tab).toBeDisabled()
+  it('submitting step 2 sends step 1 and step 2 together in ONE call', async () => {
+    api.submitProviderVerification.mockResolvedValue(pending())
+    renderProvider()
+    await userEvent.type(await goToStep2(), '11112222333344')
+    await userEvent.upload(screen.getByLabelText(/FSSAI certificate/), bizFile('cert.pdf'))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await waitFor(() => expect(api.submitProviderVerification).toHaveBeenCalledTimes(1))
+    expect(api.submitProviderVerification).toHaveBeenCalledWith(expect.objectContaining({
+      entity_name: "Ravi's Kitchen", pan: 'ABCDE1234F', aadhaar: '987654321098',
+      fssai_number: '11112222333344', business_proof: expect.any(File), fssai_cert: expect.any(File),
+    }))
+    expect(await screen.findByText('Under review')).toBeInTheDocument()
   })
 
-  it('step 2 tab is enabled when step 1 is approved', async () => {
-    api.getProviderVerification.mockResolvedValue(step1Approved())
-    render(<ProviderVerificationPage />)
-    await screen.findByText(/Identity documents have been verified/i)
-    const step2Tab = screen.getByRole('tab', { name: /Step 2|Business document/i })
-    expect(step2Tab).not.toBeDisabled()
+  it('shows only masked identifiers once submitted, never the raw numbers', async () => {
+    api.getProviderVerification.mockResolvedValue(pending())
+    renderProvider()
+    expect(await screen.findByText('XXXX-XXXX-1098')).toBeInTheDocument()
+    expect(screen.getByText('XXXXX1234F')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('987654321098')
+    expect(screen.queryByLabelText('PAN *')).not.toBeInTheDocument()
   })
 
-  it('shows pending message after step 1 submitted', async () => {
-    api.getProviderVerification.mockResolvedValue(notSubmitted())
-    api.submitProviderStep1.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
-    await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    expect(await screen.findByText(/under review/i)).toBeInTheDocument()
+  it('shows the verified state with the detail tiles when approved', async () => {
+    api.getProviderVerification.mockResolvedValue(approved())
+    renderProvider()
+    expect(await screen.findByText('You are verified')).toBeInTheDocument()
+    expect(screen.getByText('11112222333344')).toBeInTheDocument()
   })
 
-  it('shows rejection reason and Resubmit button when step 1 rejected', async () => {
-    api.getProviderVerification.mockResolvedValue(step1Rejected())
-    render(<ProviderVerificationPage />)
+  it('shows the rejection reason and lets the donor start again', async () => {
+    api.getProviderVerification.mockResolvedValue(rejected())
+    renderProvider()
     expect(await screen.findByText(/PAN does not match records/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Resubmit' })).toBeInTheDocument()
+    expect(screen.getByLabelText('PAN *')).toBeInTheDocument()
+  })
+
+  it('links to the listings page', async () => {
+    renderProvider()
+    expect(await screen.findByRole('link', { name: 'Open listings' })).toHaveAttribute('href', '/provider/listings')
   })
 })
 
-describe('ProviderVerificationPage — client validation', () => {
-  it('rejects invalid PAN', async () => {
-    render(<ProviderVerificationPage />)
-    await userEvent.type(await screen.findByLabelText('PAN *'), 'BAD')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+describe('ProviderVerificationPage: client validation', () => {
+  it('rejects invalid PAN on step 1', async () => {
+    renderProvider()
+    await fillStep1({ pan: 'BAD' })
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to step 2' }))
     expect(screen.getByText(/PAN must be 10 characters/i)).toBeInTheDocument()
-    expect(api.submitProviderStep1).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText(/FSSAI licence number/)).not.toBeInTheDocument()
   })
 
-  it('rejects invalid Aadhaar', async () => {
-    render(<ProviderVerificationPage />)
-    await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  it('rejects invalid Aadhaar on step 1', async () => {
+    renderProvider()
+    await fillStep1({ aadhaar: '123' })
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to step 2' }))
     expect(screen.getByText(/12 digits/i)).toBeInTheDocument()
-    expect(api.submitProviderStep1).not.toHaveBeenCalled()
   })
 
-  it('rejects FSSAI that is not 14 digits', async () => {
-    render(<ProviderVerificationPage />)
+  it('requires the business name and document on step 1', async () => {
+    renderProvider()
     await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
-    await userEvent.type(screen.getByLabelText(/FSSAI/), '1234')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '987654321098')
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to step 2' }))
+    expect(screen.getByText(/Business name is required/i)).toBeInTheDocument()
+    expect(screen.getByText(/Upload your business registration document/i)).toBeInTheDocument()
+  })
+
+  it('rejects an FSSAI number that is not 14 digits and sends nothing', async () => {
+    renderProvider()
+    await userEvent.type(await goToStep2(), '1234')
+    await userEvent.upload(screen.getByLabelText(/FSSAI certificate/), bizFile())
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
     expect(screen.getByText(/14 digits/i)).toBeInTheDocument()
-    expect(api.submitProviderStep1).not.toHaveBeenCalled()
+    expect(api.submitProviderVerification).not.toHaveBeenCalled()
   })
 
-  it('accepts valid FSSAI of exactly 14 digits', async () => {
-    api.submitProviderStep1.mockResolvedValue(step1Pending())
-    render(<ProviderVerificationPage />)
-    await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
-    await userEvent.type(screen.getByLabelText(/FSSAI/), '12345678901234')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await waitFor(() => expect(api.submitProviderStep1).toHaveBeenCalled())
+  it('requires the FSSAI certificate', async () => {
+    renderProvider()
+    await userEvent.type(await goToStep2(), '11112222333344')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    expect(screen.getByText(/Upload your FSSAI certificate/i)).toBeInTheDocument()
+    expect(api.submitProviderVerification).not.toHaveBeenCalled()
+  })
+
+  it('can go back to step 1 and keeps what was typed', async () => {
+    renderProvider()
+    await goToStep2()
+    await userEvent.click(screen.getByRole('button', { name: 'Back to step 1' }))
+    expect(screen.getByLabelText(/Business name/)).toHaveValue("Ravi's Kitchen")
+    expect(screen.getByLabelText('PAN *')).toHaveValue('ABCDE1234F')
   })
 })
 
-describe('ProviderVerificationPage — error display', () => {
-  it('shows server error in alert', async () => {
-    api.submitProviderStep1.mockRejectedValue(Object.assign(new Error('Duplicate pending'), { detail: 'A pending submission already exists', status: 409 }))
-    render(<ProviderVerificationPage />)
-    await userEvent.type(await screen.findByLabelText('PAN *'), 'ABCDE1234F')
-    await userEvent.type(screen.getByLabelText(/Aadhaar number/), '123456789012')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/pending submission/i)
+describe('ProviderVerificationPage: error display', () => {
+  it('shows a server error in an alert', async () => {
+    api.submitProviderVerification.mockRejectedValue(Object.assign(new Error('Duplicate pending'), { detail: 'A verification request is already pending review', status: 409 }))
+    renderProvider()
+    await userEvent.type(await goToStep2(), '11112222333344')
+    await userEvent.upload(screen.getByLabelText(/FSSAI certificate/), bizFile())
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already pending/i)
   })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AdminVerificationsPage
 // ─────────────────────────────────────────────────────────────────────────────
-describe('AdminVerificationsPage — reject needs reason', () => {
+describe('AdminVerificationsPage: one combined donor request', () => {
+  it('shows identity, business and FSSAI details with every document on one card', async () => {
+    render(<AdminVerificationsPage />)
+    const card = (await screen.findByRole('heading', { name: 'Ravi Kitchen' })).closest('article')
+    expect(within(card).getByText('XXXXX1234F')).toBeInTheDocument()
+    expect(within(card).getByText('XXXX-XXXX-1098')).toBeInTheDocument()
+    expect(within(card).getByText('11112222333344')).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'View Business registration' })).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'View FSSAI certificate' })).toBeInTheDocument()
+    expect(within(card).getAllByRole('button', { name: 'Approve' })).toHaveLength(1)
+  })
+
+  it('offers only the donor and NGO types in the filter', async () => {
+    render(<AdminVerificationsPage />)
+    const select = await screen.findByLabelText('Type')
+    expect([...select.options].map((o) => o.value)).toEqual(['', 'provider', 'ngo'])
+  })
+})
+
+describe('AdminVerificationsPage: reject needs reason', () => {
   it('shows inline error when rejection reason is empty', async () => {
     render(<AdminVerificationsPage />)
-    // Open the reject modal for the first pending item
     const rejectBtns = await screen.findAllByRole('button', { name: 'Reject' })
     await userEvent.click(rejectBtns[0])
-    // Click confirm without typing a reason
     const dialog = screen.getByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm rejection' }))
     expect(within(dialog).getByRole('alert')).toHaveTextContent(/required/i)
@@ -164,8 +210,7 @@ describe('AdminVerificationsPage — reject needs reason', () => {
     const rejectBtns = await screen.findAllByRole('button', { name: 'Reject' })
     await userEvent.click(rejectBtns[0])
     const dialog = screen.getByRole('dialog')
-    const reasonField = within(dialog).getByLabelText(/Rejection reason/)
-    fireEvent.change(reasonField, { target: { value: 'Docs unclear' } })
+    fireEvent.change(within(dialog).getByLabelText(/Rejection reason/), { target: { value: 'Docs unclear' } })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm rejection' }))
     await waitFor(() =>
       expect(api.decideVerification).toHaveBeenCalledWith(1, { decision: 'reject', rejection_reason: 'Docs unclear' })
@@ -174,7 +219,6 @@ describe('AdminVerificationsPage — reject needs reason', () => {
 
   it('approves without a modal', async () => {
     api.decideVerification.mockResolvedValue({})
-    // beforeEach sets listVerifications to return items for both initial load and refetch
     render(<AdminVerificationsPage />)
     const approveBtns = await screen.findAllByRole('button', { name: 'Approve' })
     await userEvent.click(approveBtns[0])
@@ -184,21 +228,17 @@ describe('AdminVerificationsPage — reject needs reason', () => {
   })
 })
 
-describe('AdminVerificationsPage — blob URL revoked on close', () => {
+describe('AdminVerificationsPage: blob URL revoked on close', () => {
   it('calls revokeObjectURL when the document modal is closed', async () => {
     const fakeUrl = 'blob:http://localhost/test-123'
     api.fetchDocumentUrl.mockResolvedValue(fakeUrl)
     const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
 
     render(<AdminVerificationsPage />)
-    // Click "View document" on first card
-    const viewBtns = await screen.findAllByRole('button', { name: 'View document' })
+    const viewBtns = await screen.findAllByRole('button', { name: 'View Business registration' })
     await userEvent.click(viewBtns[0])
-
-    // Wait for the iframe to appear (document loaded)
     await waitFor(() => expect(screen.getByTitle('Verification document')).toBeInTheDocument())
-
-    // Close the modal
+    expect(api.fetchDocumentUrl).toHaveBeenCalledWith(11)
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(revokeSpy).toHaveBeenCalledWith(fakeUrl)
@@ -208,7 +248,7 @@ describe('AdminVerificationsPage — blob URL revoked on close', () => {
   it('shows friendly message on 404 document', async () => {
     api.fetchDocumentUrl.mockRejectedValue(Object.assign(new Error('not found'), { detail: 'Document not found or already deleted.', status: 404 }))
     render(<AdminVerificationsPage />)
-    const viewBtns = await screen.findAllByRole('button', { name: 'View document' })
+    const viewBtns = await screen.findAllByRole('button', { name: 'View NGO registration' })
     await userEvent.click(viewBtns[0])
     expect(await screen.findByText(/Document not found or already deleted/i)).toBeInTheDocument()
   })

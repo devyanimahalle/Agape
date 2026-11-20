@@ -1,36 +1,39 @@
-"""SQLAlchemy engine, session factory, and DeclarativeBase."""
+"""Engine, session factory and FastAPI dependency.
+
+`DATABASE_URL` selects the database. PostgreSQL is the target (`postgresql+psycopg://...` for the psycopg v3 driver,
+which is what Role D's tests use; `postgresql+psycopg2://` works if that driver is installed instead). When it is
+unset the app falls back to a local SQLite file so `uvicorn app.main:app` still starts for quick local runs.
+SQLite is fine for Role B's tests; Role D's concurrency tests require PostgreSQL.
+"""
 import os
-from collections.abc import Generator
 
-from sqlalchemy import MetaData, create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Deterministic naming convention for constraints and indexes
-NAMING_CONVENTION = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
+DEFAULT_URL = "sqlite:///./agape_dev.db"
 
 
-class Base(DeclarativeBase):
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+def _database_url() -> str:
+    url = os.environ.get("DATABASE_URL") or DEFAULT_URL
+    if url.startswith("postgres://"):  # some hosts still hand out the legacy scheme
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///shareplate.db")
-
-connect_args = {}
+DATABASE_URL = _database_url()
+_kwargs: dict = {"future": True}
 if DATABASE_URL.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
+    _kwargs["connect_args"] = {"check_same_thread": False}  # FastAPI serves requests from a thread pool
+else:
+    _kwargs["pool_pre_ping"] = True
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(DATABASE_URL, **_kwargs)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+Base = declarative_base()
 
 
-def get_db() -> Generator[Session, None, None]:
-    """FastAPI dependency yielding a scoped SQLAlchemy session."""
+def get_db():
+    """Yield a session per request and always close it. Routes commit explicitly."""
     db = SessionLocal()
     try:
         yield db

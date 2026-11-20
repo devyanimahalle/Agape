@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Card } from '../../components/ui'
+import PageHeader from '../../components/PageHeader'
 import * as api from './api'
 import BoardMap from './components/BoardMap'
 import ConfirmDialog from './components/ConfirmDialog'
@@ -100,49 +102,52 @@ export default function NgoBoardPage() {
 
   if (status === 'not_verified') {
     return (
-      <main className="mx-auto max-w-3xl p-4">
-        <h1 className="text-2xl font-bold">Food available near you</h1>
-        <p role="alert" className="mt-4 rounded border border-amber-300 bg-amber-50 p-3">
-          Your NGO has not been approved yet. You can see the board once an admin approves your registration.
-        </p>
+      <main>
+        <PageHeader title="Food board">Nearby surplus food, nearest first.</PageHeader>
+        <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-20">
+          <p role="alert" className="max-w-3xl rounded-card bg-warn-bg p-6 text-warn-ink">
+            Your NGO has not been approved yet. You can see the board once an admin approves your registration.
+          </p>
+        </div>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Food available near you</h1>
-          <p className="text-sm text-gray-600">Nearest first · updates automatically · <a className="underline" href="/ngo/reservations">My reservations</a></p>
-        </div>
-        <div role="group" aria-label="View" className="flex overflow-hidden rounded border text-sm">
+    <main>
+      <PageHeader title="Food board">
+        Food available near you. Nearest first · updates automatically ·{' '}
+        <a className="font-bold underline underline-offset-4" href="/ngo/reservations">My reservations</a>
+      </PageHeader>
+      <div className="mx-auto max-w-6xl space-y-3 px-5 py-12 md:px-10 md:py-20">
+      <div className="flex justify-end">
+        <div role="group" aria-label="View" className="flex gap-1">
           {['list', 'map'].map((v) => (
-            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`px-3 py-1.5 capitalize ${view === v ? 'bg-gray-800 text-white' : 'bg-white'}`}>
+            <Button key={v} aria-pressed={view === v} onClick={() => setView(v)} variant={view === v ? 'brand' : 'dark'} className="!px-5 !py-2 capitalize">
               {v}
-            </button>
+            </Button>
           ))}
         </div>
-      </header>
+      </div>
 
       <LocationPicker location={location} saved={saved} onChange={setLocation} />
 
       {notice && (
-        <p role={notice.kind === 'error' ? 'alert' : 'status'} className={`rounded border p-3 text-sm ${notice.kind === 'error' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50'}`}>
+        <p role={notice.kind === 'error' ? 'alert' : 'status'} className={`rounded-card p-5 ${notice.kind === 'error' ? 'bg-bad-bg text-bad-ink' : 'bg-ok-bg text-ok-ink'}`}>
           {notice.text}
         </p>
       )}
-      {error && status !== 'error' && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && status !== 'error' && <p role="alert" className="rounded-card bg-bad-bg p-5 text-bad-ink">{error}</p>}
 
-      {status === 'loading' && <p>Loading available food…</p>}
+      {status === 'loading' && <p className="p-8 text-center text-muted">Loading available food…</p>}
       {status === 'error' && (
-        <div role="alert" className="rounded border border-red-300 bg-red-50 p-3">
+        <div role="alert" className="rounded-card bg-bad-bg p-6 text-bad-ink">
           <p>{error}</p>
-          <button type="button" onClick={() => { setStatus('loading'); load() }} className="mt-2 rounded border px-2 py-1 text-sm">Try again</button>
+          <Button variant="dark" onClick={() => { setStatus('loading'); load() }} className="mt-4 !px-4 !py-2">Try again</Button>
         </div>
       )}
-      {status === 'ready' && !location && <p>Set your location above to see food nearby.</p>}
-      {status === 'ready' && location && visible.length === 0 && <p>No food is listed right now. Check back soon.</p>}
+      {status === 'ready' && !location && <Card><p>Set your location above to see food nearby.</p></Card>}
+      {status === 'ready' && location && visible.length === 0 && <Card><p>No food is listed right now. Check back soon.</p></Card>}
 
       {status === 'ready' && location && visible.length > 0 && view === 'list' && (
         <div className="grid gap-3 md:grid-cols-2">
@@ -166,6 +171,7 @@ export default function NgoBoardPage() {
           onCancel={() => setTarget(null)}
         />
       )}
+      </div>
     </main>
   )
 }
