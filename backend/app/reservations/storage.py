@@ -2,8 +2,9 @@
 
 Until Role C's service is merged this implements the contract's rule 8 itself:
 PDF/JPG/PNG only (checked by content, not just extension), size cap, random filenames,
-stored under PRIVATE_UPLOAD_DIR (a private Docker volume). To use Role C's service, replace
-the body of `save_proof_file` / `delete_file`; nothing else in this module's callers changes.
+stored under PRIVATE_UPLOAD_DIR (or /tmp/agape/private on ephemeral hosts). To use Role C's
+service, replace the body of `save_proof_file` / `delete_file`; nothing else in this
+module's callers changes.
 """
 import os
 import uuid
@@ -24,7 +25,7 @@ _SIGNATURES = {
 
 
 def _upload_dir() -> Path:
-    path = Path(os.environ.get("PRIVATE_UPLOAD_DIR", "/data/private")) / "proofs"
+    path = Path(os.environ.get("PRIVATE_UPLOAD_DIR", "/tmp/agape/private")) / "proofs"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -47,7 +48,11 @@ def save_proof_file(db: Session, owner_id: int, upload: UploadFile) -> Document:
         raise ApiError(400, "INVALID_FILE_TYPE", "Only PDF, JPG or PNG files are allowed")
     path = _upload_dir() / f"{uuid.uuid4().hex}.{ext}"
     path.write_bytes(data)
-    doc = Document(owner_id=owner_id, kind="proof_letter" if ext == "pdf" else "proof_photo", private_path=str(path))
+    doc = Document(
+        owner_id=owner_id,
+        kind="proof_letter" if ext == "pdf" else "proof_photo",
+        private_path=str(path),
+    )
     db.add(doc)
     db.flush()
     return doc
