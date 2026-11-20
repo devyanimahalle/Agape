@@ -1,28 +1,36 @@
-"""Database session and engine configuration.
-
-Exported as app.db.session per contract and team integration guide:
-- Base
-- engine
-- SessionLocal
-- get_db
-"""
+"""SQLAlchemy engine, session factory, and DeclarativeBase."""
 import os
-from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from collections.abc import Generator
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://shareplate:shareplate@localhost:5432/shareplate",
-)
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-engine = create_engine(DATABASE_URL)
+# Deterministic naming convention for constraints and indexes
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///shareplate.db")
+
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Yield a database session, closing it when done."""
+    """FastAPI dependency yielding a scoped SQLAlchemy session."""
     db = SessionLocal()
     try:
         yield db

@@ -1,34 +1,52 @@
-"""SharePlate FastAPI application entrypoint."""
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""FastAPI entrypoint. Created by Role B (deviation D2: no role owned it).
 
-try:
-    from app.admin.router import router as admin_router
-    from app.impact.router import router as impact_router
-except ImportError:
-    from backend.app.admin.router import router as admin_router
-    from backend.app.impact.router import router as impact_router
+Other roles register their router in ROUTERS below (one line each) and nothing else.
+"""
+from contextlib import asynccontextmanager
 
-app = FastAPI(
-    title="SharePlate API",
-    description="Food surplus redistribution platform",
-    version="1.0.0",
-)
+from fastapi import APIRouter, FastAPI
 
-# CORS — allow all origins for development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from app.auth import config as auth_config
+from app.auth.router import router as auth_router
+from app.errors import register_error_handlers
+from app.listings.jobs import start_scheduler
+from app.listings.router import router as listings_router
 
-# Mount routers under /api/v1
-app.include_router(admin_router, prefix="/api/v1")
-app.include_router(impact_router, prefix="/api/v1")
+API_PREFIX = "/api/v1"
+
+# One line per module router. Role C/D/E: add yours here.
+ROUTERS = [
+    auth_router,  # Role B
+    listings_router,  # Role B
+    # verification_router,   # Role C
+    # board_router,          # Role D
+    # admin_router, impact_router,  # Role E
+]
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    auth_config.assert_safe_config()
+    scheduler = start_scheduler()  # listing expiry job (Role B)
+    yield
+    if scheduler:
+        scheduler.shutdown(wait=False)
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="SharePlate API", version="1.0.0", lifespan=lifespan)
+    register_error_handlers(app)
+
+    api = APIRouter(prefix=API_PREFIX)
+    for r in ROUTERS:
+        api.include_router(r)
+    app.include_router(api)
+
+    @app.get("/health", tags=["health"])
+    def health():
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()

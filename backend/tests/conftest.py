@@ -1,135 +1,97 @@
-"""
-Shared test fixtures for the SharePlate backend.
-Uses SQLite in-memory for fast isolated tests.
-"""
-import sys
+"""Shared fixtures. Uses DATABASE_URL (Postgres service container in CI);
+falls back to in-memory SQLite for quick local runs."""
 import os
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-try:
-    from app.db.session import Base, get_db
-    from app.common.deps import UserStub, get_current_user
-    from app.db import models  # noqa: F401 — register all models with Base
-    from app.main import app
-except ImportError:
-    from backend.app.db.session import Base, get_db
-    from backend.app.common.deps import UserStub, get_current_user
-    from backend.app.db import models  # noqa: F401 — register all models with Base
-    from backend.app.main import app
+from app.db import models  # noqa: F401  (registers tables on Base)
+from app.db.session import Base, get_db
+from app.main import create_app
 
-
-# ---------------------------------------------------------------------------
-# Database fixtures
-# ---------------------------------------------------------------------------
-
-SQLALCHEMY_DATABASE_URL = "sqlite://"
-
-
-@pytest.fixture(scope="function")
-def db_engine():
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    # Enable foreign keys for SQLite
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_conn, connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
-
-
-@pytest.fixture(scope="function")
-def db_session(db_engine):
-    TestingSessionLocal = sessionmaker(
-        autocommit=False, autoflush=False, bind=db_engine
-    )
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-# ---------------------------------------------------------------------------
-# Auth override helpers
-# ---------------------------------------------------------------------------
-
-def _make_auth_override(user: UserStub):
-    async def _override():
-        return user
-    return _override
-
-
-ADMIN_USER = UserStub(id=1, email="admin@test.com", role="admin", name="Admin")
-PROVIDER_USER = UserStub(id=2, email="provider@test.com", role="provider", name="Provider")
-NGO_USER = UserStub(id=3, email="ngo@test.com", role="ngo", name="NGO User")
-
-
-# ---------------------------------------------------------------------------
-# TestClient fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture()
-def client(db_session: Session):
-    """Unauthenticated TestClient with DB override only."""
-    def _override_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = _override_db
-    # Remove any auth override so unauthenticated calls get 401
-    app.dependency_overrides.pop(get_current_user, None)
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL") or "sqlite://"
 
 
 @pytest.fixture()
-def admin_client(db_session: Session):
-    """TestClient authenticated as admin."""
-    def _override_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = _override_db
-    app.dependency_overrides[get_current_user] = _make_auth_override(ADMIN_USER)
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture()
-def provider_client(db_session: Session):
-    """TestClient authenticated as provider."""
-    def _override_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = _override_db
-    app.dependency_overrides[get_current_user] = _make_auth_override(PROVIDER_USER)
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+def engine():
+    kwargs = {}
+    if _URL.startswith("sqlite"):
+        kwargs = {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
+    eng = create_engine(_URL, **kwargs)
+    Base.metadata.drop_all(eng)
+    Base.metadata.create_all(eng)
+    yield eng
+    Base.metadata.drop_all(eng)
+    eng.dispose()
 
 
 @pytest.fixture()
-def ngo_client(db_session: Session):
-    """TestClient authenticated as NGO."""
-    def _override_db():
-        yield db_session
+def db(engine):
+    Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    session = Session()
+    yield session
+    session.close()
 
-    app.dependency_overrides[get_db] = _override_db
-    app.dependency_overrides[get_current_user] = _make_auth_override(NGO_USER)
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+
+@pytest.fixture()
+def app(engine):
+    application = create_app()
+    Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+    def _get_db():
+        s = Session()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    application.dependency_overrides[get_db] = _get_db
+    return application
+
+
+@pytest.fixture()
+def client(app):
+    return TestClient(app)
+
+
+PROVIDER = {
+    "email": "p@example.com",
+    "password": "Passw0rd!",
+    "role": "provider",
+    "name": "Pat Provider",
+    "phone": "+91 98765 43210",
+    "category": "restaurant",
+    "org_name": "Pat's Kitchen",
+    "address": "MG Road, Bengaluru",
+    "lat": 12.9716,
+    "lng": 77.5946,
+}
+NGO = {
+    "email": "n@example.com",
+    "password": "Passw0rd!",
+    "role": "ngo",
+    "name": "Nina NGO",
+    "phone": "9876543210",
+    "org_name": "Helping Hands",
+    "reg_number": "KA/2020/123",
+    "address": "Indiranagar, Bengaluru",
+    "lat": 12.9784,
+    "lng": 77.6408,
+}
+
+
+@pytest.fixture()
+def provider_payload():
+    return dict(PROVIDER)
+
+
+@pytest.fixture()
+def ngo_payload():
+    return dict(NGO)
+
+
+def auth_header(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}

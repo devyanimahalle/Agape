@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Agape tokens, adapted from The Stacked Store's palette. See docs/design-system.md */
+@theme {
+  --color-canvas: #f5f0e4;
+  --color-panel: #ffffff;
+  --color-ink: #111111;
+  --color-muted: #5b564b;
+  --color-line: #a89f91;
+  --color-sage: #889387;
+  --color-primary: #ffd600;
+  --color-highlight: #f4f46e;
+  --color-plum: #3d1a39;
+  --color-plum-mid: #a54d85;
+  --color-toast: #3b404b;
+
+  /* Warm orange brand accent. Dark ink text sits ON orange surfaces (>=4.5:1 on #ea580c, ~6.8:1 on #f97316).
+     Never put white text on orange. As TEXT on cream, use brand-deep, or brand only at display size (>=24px). */
+  --color-brand: #ea580c;
+  --color-brand-bright: #f97316;
+  --color-brand-deep: #9a3412;
+
+  /* Status tints: dark text on pale backgrounds (AA). Never use yellow as text. */
+  --color-ok-bg: #dff0e3;
+  --color-ok-ink: #14532d;
+  --color-warn-bg: #fde8c8;
+  --color-warn-ink: #7a3e00;
+  --color-bad-bg: #fbdcdc;
+  --color-bad-ink: #7f1d1d;
+
+  /* Tone steps instead of borders: surfaces separate by a small change in tone. */
+  --color-canvas-dim: #ebe4d1;
+  --color-on-ink: #d9d2c1; /* secondary text on ink, ~12:1 */
+
+  --font-display: "Anton", Impact, sans-serif;
+  --font-sans: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --radius-card: 10px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  body { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; }
+  h1, h2, h3 { font-family: var(--font-display); text-transform: uppercase; font-weight: 400; letter-spacing: 0.005em; }
+  :focus-visible { outline: 3px solid var(--color-ink); outline-offset: 3px; border-radius: 4px; }
+  .on-ink :focus-visible, .bg-ink:focus-visible { outline-color: var(--color-brand-bright); }
+  ::selection { background: var(--color-brand-bright); color: var(--color-ink); }
+}
+
+/* Feedback on controls: a physical press, nothing more. */
+.press { transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.18s, color 0.18s; }
+.press:hover { transform: translateY(-2px); }
+.press:active { transform: translateY(1px) scale(0.985); }
+
+/* Scroll entrance, progressive: content is fully visible where scroll timelines are unsupported. */
+@keyframes agape-enter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@supports (animation-timeline: view()) {
+  .reveal { animation: agape-enter linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; }
+}
+
+/* Landing entry animation: a short fade/rise. Elements are fully visible without it (no opacity:0 default). */
+@keyframes agape-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.agape-rise { animation: agape-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+@media (prefers-reduced-motion: reduce) {
+  .agape-rise, .reveal { animation: none; }
+  .press, .press:hover, .press:active { transform: none; transition: none; }
+}
