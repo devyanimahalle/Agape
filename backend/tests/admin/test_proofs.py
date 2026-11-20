@@ -1,5 +1,4 @@
 """Tests for GET/POST /api/v1/admin/proofs."""
-import pytest
 
 
 class TestListProofs:

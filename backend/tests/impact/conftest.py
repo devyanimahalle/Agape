@@ -5,9 +5,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 try:
-    from app.db.models import Listing, User, NgoProfile, ProviderProfile
+    from app.db.models import Listing, User
 except ImportError:
-    from backend.app.db.models import Listing, User, NgoProfile, ProviderProfile
+    from backend.app.db.models import Listing, User
 
 
 @pytest.fixture()
