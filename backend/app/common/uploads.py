@@ -72,7 +72,7 @@ class DocumentNotFoundError(UploadError):
 
 def get_private_upload_dir() -> Path:
     """Read PRIVATE_UPLOAD_DIR at call time to support runtime test overrides."""
-    return Path(os.environ.get("PRIVATE_UPLOAD_DIR", "/data/private"))
+    return Path(os.environ.get("PRIVATE_UPLOAD_DIR", "/tmp/agape/private"))
 
 
 def get_max_upload_bytes() -> int:
