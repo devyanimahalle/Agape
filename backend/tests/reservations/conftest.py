@@ -12,8 +12,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-TEST_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/shareplate_test"
+_LOCAL_DEFAULT = "postgresql+psycopg://postgres:postgres@localhost:5432/shareplate_test"
+_env_db = os.environ.get("DATABASE_URL", "")
+# Prefer an explicit TEST_DATABASE_URL, then a Postgres DATABASE_URL (as set by CI), then local default.
+TEST_URL = os.environ.get("TEST_DATABASE_URL") or (
+    _env_db if _env_db.startswith("postgresql") else _LOCAL_DEFAULT
 )
 os.environ.setdefault("DATABASE_URL", TEST_URL)
 
